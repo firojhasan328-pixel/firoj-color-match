@@ -66,7 +66,6 @@ export default function Home() {
         color,
         details,
       });
-      // Reset
       setUploadFile(null);
       setUploadPreview(null);
       setGalleryRefresh((k) => k + 1);
@@ -103,16 +102,16 @@ export default function Home() {
               ✕
             </button>
             <h3>Color Match</h3>
-            <a href="/" onClick={() => setMenuOpen(false)}>
+            <a href="/home" onClick={() => setMenuOpen(false)}>
               🏠 হোম
             </a>
-            <a href="/" onClick={() => setMenuOpen(false)}>
+            <a href="/home" onClick={() => setMenuOpen(false)}>
               🎨 কালার ম্যাচিং
             </a>
-            <a href="/" onClick={() => setMenuOpen(false)}>
+            <a href="/home" onClick={() => setMenuOpen(false)}>
               ⭐ ফেভারিট
             </a>
-            <a href="/" onClick={() => setMenuOpen(false)}>
+            <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল
             </a>
             <button onClick={handleLogout}>🚪 লগআউট</button>

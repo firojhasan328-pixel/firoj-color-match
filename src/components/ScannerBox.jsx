@@ -1,25 +1,45 @@
 import React, { useRef, useState } from "react";
+import {
+  extractDominantColor,
+  findMatchingImages,
+} from "../services/colorService";
+import { sampleColorImages } from "../data/sampleColors";
 
-export default function ScannerBox({ onCapture }) {
+export default function ScannerBox({ onResult }) {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [scanning, setScanning] = useState(false);
 
   function handleScanClick() {
-    // Camera সহ File Input খুলবে (মোবাইলে সরাসরি Camera আসবে)
     fileInputRef.current?.click();
   }
 
-  function handleFileChange(e) {
+  async function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setPreview(event.target.result);
+    reader.onload = async (event) => {
+      const dataUrl = event.target.result;
+      setPreview(dataUrl);
       setScanning(true);
-      // Phase 2-এ এখানে Color Detection হবে
-      if (onCapture) onCapture(file, event.target.result);
+
+      try {
+        const color = await extractDominantColor(dataUrl);
+        const matches = findMatchingImages(color, sampleColorImages);
+
+        const result = {
+          found: matches.length > 0,
+          scannedColor: color,
+          matches,
+        };
+
+        if (onResult) onResult(result);
+      } catch (err) {
+        console.error("Color extraction failed:", err);
+      } finally {
+        setScanning(false);
+      }
     };
     reader.readAsDataURL(file);
   }
@@ -28,6 +48,7 @@ export default function ScannerBox({ onCapture }) {
     setPreview(null);
     setScanning(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (onResult) onResult(null);
   }
 
   return (
@@ -55,11 +76,13 @@ export default function ScannerBox({ onCapture }) {
       ) : (
         <div className="scanner-preview">
           <img src={preview} alt="Scanned" />
-          {scanning && (
+          {scanning ? (
             <div className="scanner-status">
               <span className="pulse" />
               বিশ্লেষণ করা হচ্ছে...
             </div>
+          ) : (
+            <div className="scanner-status done">✅ বিশ্লেষণ সম্পন্ন</div>
           )}
           <div className="scanner-actions">
             <button className="scan-btn secondary" onClick={handleReset}>

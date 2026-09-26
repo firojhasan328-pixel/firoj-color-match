@@ -11,6 +11,7 @@ export default function DetailsModal({
   const [color, setColor] = useState(null);
   const [details, setDetails] = useState("");
   const [analyzing, setAnalyzing] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function analyze() {
@@ -27,8 +28,25 @@ export default function DetailsModal({
   }, [imagePreview]);
 
   function handleSave() {
-    if (!color) return;
-    onSave({ color, details });
+    setError("");
+
+    if (!color) {
+      setError("কালার বিশ্লেষণ শেষ হয়নি। অপেক্ষা করুন।");
+      return;
+    }
+
+    const trimmed = details.trim();
+    if (!trimmed) {
+      setError("কালার বিস্তারিত অবশ্যই দিতে হবে। বিস্তারিত ছাড়া সেভ করা যাবে না।");
+      return;
+    }
+
+    if (trimmed.length < 5) {
+      setError("বিস্তারিত কমপক্ষে ৫ অক্ষরের হতে হবে।");
+      return;
+    }
+
+    onSave({ color, details: trimmed });
   }
 
   return (
@@ -64,17 +82,31 @@ export default function DetailsModal({
 
               <div className="field" style={{ marginTop: "14px" }}>
                 <label htmlFor="details">
-                  কালার বিস্তারিত (কী দিয়ে তৈরি, কী ধরনের রঙ)
+                  কালার বিস্তারিত{" "}
+                  <span className="required-mark">*</span>
                 </label>
                 <textarea
                   id="details"
                   value={details}
-                  onChange={(e) => setDetails(e.target.value)}
+                  onChange={(e) => {
+                    setDetails(e.target.value);
+                    if (error) setError("");
+                  }}
                   placeholder="যেমন: লাল, কমলা ও বাদামী রঙের মিশ্রণ, উষ্ণ আবহ..."
                   rows={4}
                   className="details-textarea"
                 />
+                <p className="field-hint">
+                  কমপক্ষে ৫ অক্ষরের বিস্তারিত দিন — এটা বাধ্যতামূলক।
+                </p>
               </div>
+
+              <div className="watermark-note">
+                🔒 আপনার ইউনিক আইডি এবং কালার কোড ({color.hex}) স্বয়ংক্রিয়ভাবে
+                ছবির সাথে যুক্ত হয়ে যাবে — কেউ পরিবর্তন করতে পারবে না।
+              </div>
+
+              {error && <div className="error-box">{error}</div>}
 
               <div className="modal-actions">
                 <button

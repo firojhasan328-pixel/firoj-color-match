@@ -10,7 +10,15 @@ export default function UploadBox({ onLocalUpload }) {
   function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (onLocalUpload) onLocalUpload(file);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (onLocalUpload) onLocalUpload(file, event.target.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input যাতে একই ফাইল আবার সিলেক্ট করা যায়
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (

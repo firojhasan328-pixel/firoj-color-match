@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmail(email.trim(), password);
-      navigate("/");
+      navigate("/home");
     } catch (err) {
       setError("ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।");
     } finally {

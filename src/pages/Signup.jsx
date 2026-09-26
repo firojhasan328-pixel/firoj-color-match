@@ -36,13 +36,10 @@ export default function Signup() {
     try {
       const data = await signUpWithEmail(name.trim(), email.trim(), password);
 
-      // যদি Email Confirmation বন্ধ থাকে → session আসবে
       if (data?.session) {
-        // Supabase Trigger Profile তৈরি করার জন্য একটু সময় দিন
         await new Promise((r) => setTimeout(r, 800));
         navigate("/home");
       } else if (data?.user && !data.session) {
-        // Email Confirmation চালু থাকলে
         setSuccess(
           "আপনার ইমেইলে একটি Verification Link পাঠানো হয়েছে। ইমেইল যাচাই করে Login করুন।"
         );
@@ -50,13 +47,28 @@ export default function Signup() {
         navigate("/home");
       }
     } catch (err) {
-      const msg = err?.message || "";
-      if (msg.toLowerCase().includes("already")) {
-        setError("এই ইমেইল দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট আছে।");
-      } else if (msg.toLowerCase().includes("password")) {
-        setError("পাসওয়ার্ড যথেষ্ট নিরাপদ নয়।");
+      // আসল Error Message বের করা
+      const msg = (err?.message || "").toLowerCase();
+      console.error("Signup error:", err);
+
+      if (
+        msg.includes("already") ||
+        msg.includes("registered") ||
+        msg.includes("exists")
+      ) {
+        setError(
+          "এই ইমেইল দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট আছে। লগইন করুন অথবা অন্য ইমেইল ব্যবহার করুন।"
+        );
+      } else if (msg.includes("password")) {
+        setError("পাসওয়ার্ড যথেষ্ট নিরাপদ নয়। কমপক্ষে ৬ অক্ষর দিন।");
+      } else if (msg.includes("email") && msg.includes("invalid")) {
+        setError("ইমেইলের ঠিকানাটি সঠিক নয়।");
+      } else if (msg.includes("rate") || msg.includes("limit")) {
+        setError("অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।");
       } else {
-        setError("অ্যাকাউন্ট তৈরি করা যায়নি। আবার চেষ্টা করুন।");
+        setError(
+          "অ্যাকাউন্ট তৈরি করা যায়নি: " + (err?.message || "অজানা সমস্যা")
+        );
       }
     } finally {
       setLoading(false);

@@ -35,7 +35,14 @@ export default function Signup() {
     setLoading(true);
     try {
       const data = await signUpWithEmail(name.trim(), email.trim(), password);
-      if (data?.user && !data.session) {
+
+      // যদি Email Confirmation বন্ধ থাকে → session আসবে
+      if (data?.session) {
+        // Supabase Trigger Profile তৈরি করার জন্য একটু সময় দিন
+        await new Promise((r) => setTimeout(r, 800));
+        navigate("/home");
+      } else if (data?.user && !data.session) {
+        // Email Confirmation চালু থাকলে
         setSuccess(
           "আপনার ইমেইলে একটি Verification Link পাঠানো হয়েছে। ইমেইল যাচাই করে Login করুন।"
         );

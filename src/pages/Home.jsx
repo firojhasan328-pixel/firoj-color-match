@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import UploadBox from "../components/UploadBox";
 import ScannerBox from "../components/ScannerBox";
 import Gallery from "../components/Gallery";
+import ResultModal from "../components/ResultModal";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import "../styles/home.css";
@@ -13,6 +14,7 @@ export default function Home() {
   const [userName, setUserName] = useState("User");
   const [balance, setBalance] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -40,9 +42,14 @@ export default function Home() {
     console.log("Local file selected:", file?.name);
   }
 
-  function handleScanCapture(file, dataUrl) {
-    console.log("Scanned image captured:", file?.name);
-    // Phase 2-এ এখানে Color Detection হবে
+  function handleScanResult(result) {
+    setScanResult(result);
+  }
+
+  function handleAddNew() {
+    // Phase 3-এ এখানে Details Form খুলবে
+    alert("পরের ধাপে Details ফর্ম যুক্ত হবে।");
+    setScanResult(null);
   }
 
   return (
@@ -107,10 +114,7 @@ export default function Home() {
           ডিভাইস থেকে ছবি নির্বাচন করুন, অথবা নিচের AI স্ক্যানার দিয়ে
           সরাসরি কালার স্কান করুন
         </p>
-        <UploadBox
-          onLocalUpload={handleLocalUpload}
-          onUrlUpload={() => {}}
-        />
+        <UploadBox onLocalUpload={handleLocalUpload} />
       </section>
 
       {/* Scanner Section */}
@@ -122,7 +126,7 @@ export default function Home() {
           ক্যামেরা দিয়ে স্কান করুন — গ্লোবাল গ্যালারি থেকে ম্যাচিং কালার
           খুঁজে বের করুন
         </p>
-        <ScannerBox onCapture={handleScanCapture} />
+        <ScannerBox onResult={handleScanResult} />
       </section>
 
       {/* Gallery Section */}
@@ -137,6 +141,13 @@ export default function Home() {
       </section>
 
       <p className="home-footer">© 2025 Color Match</p>
+
+      {/* Result Modal */}
+      <ResultModal
+        result={scanResult}
+        onClose={() => setScanResult(null)}
+        onAddNew={handleAddNew}
+      />
     </div>
   );
 }

@@ -8,9 +8,11 @@ import ResultModal from "../components/ResultModal";
 import DetailsModal from "../components/DetailsModal";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
+import { getMyProfile } from "../services/profileService";
 import {
   uploadColorImage,
   saveColorRecord,
+  addWatermarkToImage,
 } from "../services/colorStorage";
 import "../styles/home.css";
 
@@ -18,6 +20,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("User");
   const [userId, setUserId] = useState(null);
+  const [userCode, setUserCode] = useState("");
   const [balance, setBalance] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -40,6 +43,13 @@ export default function Home() {
         "User";
       setUserName(name);
       setUserId(user.id);
+
+      try {
+        const profile = await getMyProfile();
+        if (profile?.user_code) setUserCode(profile.user_code);
+      } catch (err) {
+        console.error("Profile load error:", err);
+      }
     }
     loadUser();
   }, [navigate]);
@@ -57,15 +67,28 @@ export default function Home() {
   async function handleSaveDetails({ color, details }) {
     if (!userId || !uploadFile) return;
     setSaving(true);
+
     try {
-      const imageUrl = await uploadColorImage(uploadFile, userId);
+      // ১। Watermark + Color Code সহ ছবি তৈরি
+      const watermarkedFile = await addWatermarkToImage(
+        uploadFile,
+        userCode || "CM000000",
+        color.hex
+      );
+
+      // ২। Storage-এ আপলোড
+      const imageUrl = await uploadColorImage(watermarkedFile, userId);
+
+      // ৩। Database-এ সেভ
       await saveColorRecord({
         userId,
         ownerName: userName,
+        userCode: userCode || "CM000000",
         imageUrl,
         color,
         details,
       });
+
       setUploadFile(null);
       setUploadPreview(null);
       setGalleryRefresh((k) => k + 1);

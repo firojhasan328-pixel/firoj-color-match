@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import UploadBox from "../components/UploadBox";
+import ScannerBox from "../components/ScannerBox";
 import Gallery from "../components/Gallery";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
@@ -10,10 +11,10 @@ import "../styles/home.css";
 export default function Home() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("User");
+  const [balance, setBalance] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Login করা User-এর নাম বের করা
     async function loadUser() {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
@@ -36,18 +37,22 @@ export default function Home() {
   }
 
   function handleLocalUpload(file) {
-    // Functionality পরের ধাপে
     console.log("Local file selected:", file?.name);
   }
 
-  function handleUrlUpload(url) {
-    // Functionality পরের ধাপে
-    console.log("URL uploaded:", url);
+  function handleScanCapture(file, dataUrl) {
+    console.log("Scanned image captured:", file?.name);
+    // Phase 2-এ এখানে Color Detection হবে
   }
 
   return (
     <div className="home-page">
-      <Navbar userName={userName} onMenuClick={() => setMenuOpen(true)} />
+      <Navbar
+        userName={userName}
+        balance={balance}
+        onMenuClick={() => setMenuOpen(true)}
+        onBalanceClick={() => console.log("Balance clicked")}
+      />
 
       {/* Side Menu */}
       {menuOpen && (
@@ -99,12 +104,25 @@ export default function Home() {
           <span className="icon">📸</span> ছবি যুক্ত করুন
         </h2>
         <p className="section-sub">
-          নিচের যেকোনো একটি উপায়ে ছবি আপলোড করুন
+          ডিভাইস থেকে ছবি নির্বাচন করুন, অথবা নিচের AI স্ক্যানার দিয়ে
+          সরাসরি কালার স্কান করুন
         </p>
         <UploadBox
           onLocalUpload={handleLocalUpload}
-          onUrlUpload={handleUrlUpload}
+          onUrlUpload={() => {}}
         />
+      </section>
+
+      {/* Scanner Section */}
+      <section className="section">
+        <h2 className="section-title">
+          <span className="icon">🔍</span> AI কালার স্ক্যানার
+        </h2>
+        <p className="section-sub">
+          ক্যামেরা দিয়ে স্কান করুন — গ্লোবাল গ্যালারি থেকে ম্যাচিং কালার
+          খুঁজে বের করুন
+        </p>
+        <ScannerBox onCapture={handleScanCapture} />
       </section>
 
       {/* Gallery Section */}

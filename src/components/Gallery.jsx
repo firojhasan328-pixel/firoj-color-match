@@ -16,6 +16,7 @@ export default function Gallery({ refreshKey = 0 }) {
           caption: row.details?.slice(0, 30) || row.owner_name,
           hex: row.color_hex,
           owner: row.owner_name,
+          ownerCode: row.user_code,
           color: { r: row.color_r, g: row.color_g, b: row.color_b },
           details: row.details,
         }));
@@ -47,7 +48,21 @@ export default function Gallery({ refreshKey = 0 }) {
         images.map((img) => (
           <div key={img.id} className="gallery-item">
             <img src={img.url} alt={img.caption} loading="lazy" />
-            {img.caption && <div className="caption">{img.caption}</div>}
+
+            <div className="gallery-color-bar">
+              <span
+                className="gallery-color-chip"
+                style={{ background: img.hex }}
+              />
+              <span className="gallery-color-hex">{img.hex}</span>
+              {img.ownerCode && (
+                <span className="gallery-owner-code">{img.ownerCode}</span>
+              )}
+            </div>
+
+            {img.caption && (
+              <div className="caption">{img.caption}</div>
+            )}
           </div>
         ))
       )}

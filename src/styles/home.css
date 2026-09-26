@@ -783,3 +783,58 @@
 .scanner-status.done {
   color: #7ee0a3;
 }
+/* ---------- Details Modal ---------- */
+.details-preview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.details-preview img {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid rgba(79, 172, 254, 0.35);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+}
+
+.auto-color-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 172, 254, 0.1),
+    rgba(161, 140, 209, 0.1)
+  );
+  border: 1px solid rgba(79, 172, 254, 0.3);
+}
+
+.scan-rgb {
+  font-size: 11.5px;
+  color: #8d92ad;
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+.details-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 12, 25, 0.7);
+  color: #e6e8f0;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  min-height: 90px;
+}
+
+.details-textarea:focus {
+  border-color: #4facfe;
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.18);
+}

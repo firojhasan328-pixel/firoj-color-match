@@ -40,7 +40,7 @@ export default function Signup() {
           "আপনার ইমেইলে একটি Verification Link পাঠানো হয়েছে। ইমেইল যাচাই করে Login করুন।"
         );
       } else {
-        navigate("/");
+        navigate("/home");
       }
     } catch (err) {
       const msg = err?.message || "";

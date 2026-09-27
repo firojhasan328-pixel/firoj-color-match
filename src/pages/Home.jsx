@@ -7,6 +7,7 @@ import Gallery from "../components/Gallery";
 import ResultModal from "../components/ResultModal";
 import DetailsModal from "../components/DetailsModal";
 import DuplicateModal from "../components/DuplicateModal";
+import InvalidImageModal from "../components/InvalidImageModal";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import { getMyProfile } from "../services/profileService";
@@ -36,6 +37,7 @@ export default function Home() {
   const [scannedFile, setScannedFile] = useState(null);
   const [scannedPreview, setScannedPreview] = useState(null);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
+  const [invalidInfo, setInvalidInfo] = useState(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -93,17 +95,18 @@ export default function Home() {
     setScannedPreview(dataUrl);
   }
 
-  // ⭐ Duplicate Check সহ Save
+  function handleInvalidImage(info) {
+    setInvalidInfo(info);
+  }
+
   async function handleSaveDetails({ color, details }) {
     if (!userId || !uploadFile) return;
     setSaving(true);
 
     try {
-      // ১। Duplicate Check (Exact HEX Match)
       const duplicate = await checkDuplicateColor(color.hex);
 
       if (duplicate) {
-        // Duplicate পাওয়া গেছে → Modal দেখাই, Save বন্ধ করি
         setDuplicateInfo(duplicate);
         setUploadFile(null);
         setUploadPreview(null);
@@ -111,7 +114,6 @@ export default function Home() {
         return;
       }
 
-      // ২। Watermark + Upload + Save
       const watermarkedFile = await addWatermarkToImage(
         uploadFile,
         userCode || "CM000000",
@@ -178,6 +180,23 @@ export default function Home() {
     setDuplicateInfo(null);
   }
 
+  function handleInvalidClose() {
+    setInvalidInfo(null);
+  }
+
+  function handleInvalidTryAgain() {
+    setInvalidInfo(null);
+    // Upload Section-এ Scroll করি
+    setTimeout(() => {
+      if (uploadSectionRef.current) {
+        uploadSectionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }, 200);
+  }
+
   return (
     <div className="home-page">
       <Navbar
@@ -224,8 +243,8 @@ export default function Home() {
           আপনার ছবির <span className="grad">নিখুঁত রঙ</span> খুঁজে নিন
         </h1>
         <p>
-          যেকোনো ছবি আপলোড করুন — আমরা তার ভেতরের রঙ বিশ্লেষণ করে সেরা
-          কালার কম্বিনেশন তৈরি করে দেব।
+          যেকোনো একরঙা ছবি আপলোড করুন — আমরা তার ভেতরের রঙ বিশ্লেষণ করে
+          সেরা কালার কম্বিনেশন তৈরি করে দেব।
         </p>
       </section>
 
@@ -234,10 +253,13 @@ export default function Home() {
           <span className="icon">📸</span> ছবি যুক্ত করুন
         </h2>
         <p className="section-sub">
-          ডিভাইস থেকে ছবি নির্বাচন করুন — গ্লোবাল গ্যালারিতে যোগ হবে
+          ডিভাইস থেকে ছবি নির্বাচন করুন — শুধু একরঙা ছবি গ্রহণ করা হবে
         </p>
         <div className={uploadHighlight ? "upload-highlight" : ""}>
-          <UploadBox onLocalUpload={handleLocalUpload} />
+          <UploadBox
+            onLocalUpload={handleLocalUpload}
+            onInvalidImage={handleInvalidImage}
+          />
         </div>
       </section>
 
@@ -246,12 +268,12 @@ export default function Home() {
           <span className="icon">🔍</span> AI কালার স্ক্যানার
         </h2>
         <p className="section-sub">
-          ক্যামেরা দিয়ে স্কান করুন — গ্লোবাল গ্যালারি থেকে ম্যাচিং কালার
-          খুঁজে বের করুন
+          ক্যামেরা দিয়ে স্কান করুন — শুধু একরঙা ছবি গ্রহণ করা হবে
         </p>
         <ScannerBox
           onResult={setScanResult}
           onScanImage={handleScanImage}
+          onInvalidImage={handleInvalidImage}
         />
       </section>
 
@@ -295,6 +317,16 @@ export default function Home() {
           existingColor={duplicateInfo}
           onViewDetails={handleDuplicateViewDetails}
           onCancel={handleDuplicateCancel}
+        />
+      )}
+
+      {invalidInfo && (
+        <InvalidImageModal
+          preview={invalidInfo.preview}
+          score={invalidInfo.score}
+          reason={invalidInfo.reason}
+          onClose={handleInvalidClose}
+          onTryAgain={handleInvalidTryAgain}
         />
       )}
     </div>

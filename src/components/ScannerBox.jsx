@@ -4,8 +4,9 @@ import {
   findMatchingImages,
 } from "../services/colorService";
 import { fetchAllColors } from "../services/colorStorage";
+import { isSolidColorImage } from "../services/imageValidator";
 
-export default function ScannerBox({ onResult, onScanImage }) {
+export default function ScannerBox({ onResult, onScanImage, onInvalidImage }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
@@ -23,12 +24,30 @@ export default function ScannerBox({ onResult, onScanImage }) {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target.result;
-      setPreview(dataUrl);
+
       setScanning(true);
 
-      if (onScanImage) onScanImage(file, dataUrl);
-
       try {
+        // ১। Solid Color Check
+        const validation = await isSolidColorImage(dataUrl, 12);
+
+        if (!validation.isSolid) {
+          // ❌ Complex — Invalid Modal
+          if (onInvalidImage) {
+            onInvalidImage({
+              preview: dataUrl,
+              score: validation.score,
+              reason: validation.reason,
+            });
+          }
+          setScanning(false);
+          return;
+        }
+
+        // ✅ Solid — Scan Process চালাই
+        setPreview(dataUrl);
+        if (onScanImage) onScanImage(file, dataUrl);
+
         const scannedColor = await extractDominantColor(dataUrl);
         const allColors = await fetchAllColors();
 
@@ -49,7 +68,7 @@ export default function ScannerBox({ onResult, onScanImage }) {
         const result = {
           found: matches.length > 0,
           scannedColor,
-          scannedImage: dataUrl, // ⭐ স্ক্যান করা ছবির Data URL
+          scannedImage: dataUrl,
           matches,
         };
 
@@ -85,7 +104,7 @@ export default function ScannerBox({ onResult, onScanImage }) {
           <h3>AI কালার স্ক্যানার</h3>
           <p>
             ক্যামেরা দিয়ে স্কান করুন অথবা গ্যালারি থেকে ছবি নির্বাচন করুন —
-            আমরা গ্লোবাল গ্যালারিতে তার ম্যাচ খুঁজে বের করব।
+            শুধু একরঙা ছবি গ্রহণ করা হবে।
           </p>
 
           <div className="scan-btn-group">

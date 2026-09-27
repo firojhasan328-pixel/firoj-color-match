@@ -9,6 +9,7 @@ import DetailsModal from "../components/DetailsModal";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import { getMyProfile } from "../services/profileService";
+import { getMyBalance } from "../services/walletService";
 import {
   uploadColorImage,
   saveColorRecord,
@@ -50,9 +51,25 @@ export default function Home() {
       } catch (err) {
         console.error("Profile load error:", err);
       }
+
+      try {
+        const bal = await getMyBalance();
+        setBalance(bal);
+      } catch (err) {
+        console.error("Balance load error:", err);
+      }
     }
     loadUser();
   }, [navigate]);
+
+  async function refreshBalance() {
+    try {
+      const bal = await getMyBalance();
+      setBalance(bal);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function handleLogout() {
     await signOut();
@@ -69,17 +86,14 @@ export default function Home() {
     setSaving(true);
 
     try {
-      // ১। Watermark + Color Code সহ ছবি তৈরি
       const watermarkedFile = await addWatermarkToImage(
         uploadFile,
         userCode || "CM000000",
         color.hex
       );
 
-      // ২। Storage-এ আপলোড
       const imageUrl = await uploadColorImage(watermarkedFile, userId);
 
-      // ৩। Database-এ সেভ
       await saveColorRecord({
         userId,
         ownerName: userName,
@@ -192,6 +206,7 @@ export default function Home() {
           alert("স্ক্যান করা কালার অ্যাড করার ফিচার পরের ধাপে আসবে।");
           setScanResult(null);
         }}
+        onUnlocked={refreshBalance}
       />
 
       {uploadPreview && (

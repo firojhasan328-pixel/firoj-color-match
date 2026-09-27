@@ -1,175 +1,209 @@
-import { supabase } from "../lib/supabaseClient";
-
 // ========================================
-// ছবির উপর Watermark (Unique ID + Color Code)
+// ছবি থেকে Dominant Color বের করা (উন্নত)
 // ========================================
-export async function addWatermarkToImage(file, userCode, colorHex) {
+export function extractDominantColor(imageSrc) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
+        const size = 100;
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
 
-          // Watermark size — ছবির Width-এর ২.৫% (আগের চেয়ে ছোট)
-          const fontSize = Math.max(Math.round(canvas.width * 0.025), 12);
-          const padding = Math.round(fontSize * 0.55);
-          const radius = Math.round(fontSize * 0.5);
+        const imageData = ctx.getImageData(0, 0, size, size).data;
 
-          ctx.font = `600 ${fontSize}px "Hind Siliguri", Arial, sans-serif`;
-          ctx.textBaseline = "middle";
+        const colorBuckets = {};
+        for (let i = 0; i < imageData.length; i += 4) {
+          const r = imageData[i];
+          const g = imageData[i + 1];
+          const b = imageData[i + 2];
+          const a = imageData[i + 3];
+          if (a < 128) continue;
 
-          // ---------- Unique ID (ডান কোণায়) ----------
-          const idText = userCode || "CM000000";
-          ctx.textAlign = "right";
-          const idWidth = ctx.measureText(idText).width;
-          const idBoxW = idWidth + padding * 2;
-          const idBoxH = fontSize + padding * 1.4;
-          const idBoxX = canvas.width - idBoxW - 8;
-          const idBoxY = canvas.height - idBoxH - 8;
+          // Skip খুব সাদা ও খুব কালো Pixel (প্রায়ই Background হয়)
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          if (max > 240 && min > 240) continue;
+          if (max < 20) continue;
 
-          ctx.fillStyle = "rgba(15, 23, 42, 0.5)";
-          roundRect(ctx, idBoxX, idBoxY, idBoxW, idBoxH, radius);
-          ctx.fill();
-
-          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-          ctx.fillText(
-            idText,
-            idBoxX + idBoxW - padding,
-            idBoxY + idBoxH / 2 + 1
-          );
-
-          // ---------- Color Code (বাম কোণায়) ----------
-          if (colorHex) {
-            const colorText = colorHex.toUpperCase();
-            ctx.textAlign = "left";
-            const colorWidth = ctx.measureText(colorText).width;
-            const colorBoxW = colorWidth + padding * 2;
-            const colorBoxH = fontSize + padding * 1.4;
-            const colorBoxX = 8;
-            const colorBoxY = canvas.height - colorBoxH - 8;
-
-            ctx.fillStyle = "rgba(15, 23, 42, 0.5)";
-            roundRect(ctx, colorBoxX, colorBoxY, colorBoxW, colorBoxH, radius);
-            ctx.fill();
-
-            ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-            ctx.fillText(
-              colorText,
-              colorBoxX + padding,
-              colorBoxY + colorBoxH / 2 + 1
-            );
-          }
-
-          // Canvas → Blob → File
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error("Watermark তৈরি করা যায়নি"));
-                return;
-              }
-              const watermarkedFile = new File(
-                [blob],
-                file.name.replace(/\.[^.]+$/, "") + "_wm.jpg",
-                { type: "image/jpeg" }
-              );
-              resolve(watermarkedFile);
-            },
-            "image/jpeg",
-            0.92
-          );
-        } catch (err) {
-          reject(err);
+          const key = `${Math.round(r / 24) * 24},${Math.round(g / 24) * 24},${
+            Math.round(b / 24) * 24
+          }`;
+          if (!colorBuckets[key])
+            colorBuckets[key] = { count: 0, r: 0, g: 0, b: 0 };
+          colorBuckets[key].count++;
+          colorBuckets[key].r += r;
+          colorBuckets[key].g += g;
+          colorBuckets[key].b += b;
         }
-      };
-      img.onerror = () => reject(new Error("ছবি লোড করা যায়নি"));
-      img.src = event.target.result;
+
+        let topColor = { r: 128, g: 128, b: 128 };
+        let topCount = 0;
+        for (const key in colorBuckets) {
+          const bucket = colorBuckets[key];
+          if (bucket.count > topCount) {
+            topCount = bucket.count;
+            topColor = {
+              r: Math.round(bucket.r / bucket.count),
+              g: Math.round(bucket.g / bucket.count),
+              b: Math.round(bucket.b / bucket.count),
+            };
+          }
+        }
+
+        resolve({
+          ...topColor,
+          hex: rgbToHex(topColor.r, topColor.g, topColor.b),
+          rgbString: `rgb(${topColor.r}, ${topColor.g}, ${topColor.b})`,
+        });
+      } catch (err) {
+        reject(err);
+      }
     };
-    reader.onerror = () => reject(new Error("ছবি পড়া যায়নি"));
-    reader.readAsDataURL(file);
+    img.onerror = (err) => reject(err);
+    img.src = imageSrc;
   });
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+// ========================================
+// RGB → HEX
+// ========================================
+export function rgbToHex(r, g, b) {
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.max(0, Math.min(255, Math.round(x))).toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      })
+      .join("")
+      .toUpperCase()
+  );
 }
 
 // ========================================
-// Storage-এ ছবি আপলোড
+// HSL → Hue বের করা (রঙের পার্থক্য আরও নিখুঁত)
 // ========================================
-export async function uploadColorImage(file, userId) {
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${userId}/${Date.now()}.${fileExt}`;
-
-  const { data, error } = await supabase.storage
-    .from("color-images")
-    .upload(fileName, file, { cacheControl: "3600", upsert: false });
-
-  if (error) throw error;
-
-  const { data: urlData } = supabase.storage
-    .from("color-images")
-    .getPublicUrl(data.path);
-
-  return urlData.publicUrl;
+export function rgbToHue(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return h;
 }
 
 // ========================================
-// Database-এ color info সেভ
+// Saturation বের করা
 // ========================================
-export async function saveColorRecord({
-  userId,
-  ownerName,
-  userCode,
-  imageUrl,
-  color,
-  details,
-}) {
-  const { data, error } = await supabase
-    .from("colors")
-    .insert({
-      user_id: userId,
-      owner_name: ownerName,
-      user_code: userCode,
-      image_url: imageUrl,
-      color_hex: color.hex,
-      color_r: color.r,
-      color_g: color.g,
-      color_b: color.b,
-      details: details || "",
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+export function rgbToSaturation(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === 0) return 0;
+  return (max - min) / max;
 }
 
 // ========================================
-// Global Gallery-র সব ছবি আনা
+// দুইটি রঙের পার্থক্য (Weighted — Hue বেশি গুরুত্বপূর্ণ)
 // ========================================
-export async function fetchAllColors() {
-  const { data, error } = await supabase
-    .from("colors")
-    .select("*")
-    .order("created_at", { ascending: false });
+export function colorDistance(c1, c2) {
+  const rmean = (c1.r + c2.r) / 2;
+  const dr = c1.r - c2.r;
+  const dg = c1.g - c2.g;
+  const db = c1.b - c2.b;
 
-  if (error) throw error;
-  return data || [];
+  // "Redmean" Formula — মানুষের চোখের সাথে ভালো মেলে
+  const weightR = 2 + rmean / 256;
+  const weightG = 4;
+  const weightB = 2 + (255 - rmean) / 256;
+
+  const dist = Math.sqrt(
+    weightR * dr * dr + weightG * dg * dg + weightB * db * db
+  );
+  return dist;
+}
+
+// ========================================
+// Hue Distance (রঙের Family একই কিনা)
+// ========================================
+export function hueDistance(c1, c2) {
+  const h1 = rgbToHue(c1.r, c1.g, c1.b);
+  const h2 = rgbToHue(c2.r, c2.g, c2.b);
+  let diff = Math.abs(h1 - h2);
+  if (diff > 180) diff = 360 - diff;
+  return diff;
+}
+
+// ========================================
+// শক্তিশালী Match Score — Combined Logic
+// ========================================
+export function computeMatchScore(scanned, candidate) {
+  const colorDist = colorDistance(scanned, candidate);
+  const hDist = hueDistance(scanned, candidate);
+  const s1 = rgbToSaturation(scanned.r, scanned.g, scanned.b);
+  const s2 = rgbToSaturation(candidate.r, candidate.g, candidate.b);
+  const sDiff = Math.abs(s1 - s2) * 100;
+
+  // Score কতটা কাছাকাছি: কম = ভালো
+  // Color Distance + Hue Distance + Saturation Difference
+  const score = colorDist * 0.6 + hDist * 1.2 + sDiff * 0.6;
+  return score;
+}
+
+// ========================================
+// শক্তিশালী Image Matching — Top N ম্যাচ বের করা
+// ========================================
+export function findMatchingImages(scannedColor, images, maxResults = 6) {
+  if (!images || images.length === 0) return [];
+
+  // প্রতিটি Image-এর সাথে Score হিসাব
+  const scored = images.map((img) => {
+    const candidateColor = img.color || hexToRgb(img.hex);
+    return {
+      ...img,
+      score: computeMatchScore(scannedColor, candidateColor),
+    };
+  });
+
+  // Sort করে কাছাকাছি যেগুলো সেগুলো আগে
+  scored.sort((a, b) => a.score - b.score);
+
+  // Best Score থেকে 25% পর্যন্ত Tolerance দিই
+  const bestScore = scored[0]?.score || 0;
+  const threshold = Math.max(bestScore * 1.25, 30);
+
+  // Threshold-এর মধ্যে যেগুলো আছে সেগুলো নিই
+  const matched = scored.filter((img) => img.score <= threshold);
+
+  // Max Results-এ সীমাবদ্ধ
+  return matched.slice(0, maxResults);
+}
+
+// ========================================
+// HEX → RGB
+// ========================================
+export function hexToRgb(hex) {
+  if (!hex) return { r: 128, g: 128, b: 128 };
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.substring(0, 2), 16),
+    g: parseInt(clean.substring(2, 4), 16),
+    b: parseInt(clean.substring(4, 6), 16),
+  };
 }

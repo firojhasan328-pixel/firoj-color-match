@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { unlockColor } from "../services/walletService";
 
-export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
+export default function ResultModal({
+  result,
+  onClose,
+  onAddNew,
+  onUnlocked,
+  currentUserId,
+}) {
   const [unlockState, setUnlockState] = useState({});
   const [countdown, setCountdown] = useState({});
   const [processing, setProcessing] = useState({});
@@ -15,7 +21,6 @@ export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
         }, 1000);
         timers.push(timer);
       } else if (countdown[id] === 0) {
-        // Countdown শেষ → RPC Call → Unlock
         finalizeUnlock(id);
       }
     });
@@ -37,12 +42,18 @@ export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
     setProcessing((p) => ({ ...p, [matchId]: true }));
 
     try {
-      await unlockColor(match.id, match.userId);
+      console.log("Calling unlock_color RPC:", {
+        colorId: match.id,
+        ownerId: match.userId,
+      });
+      const result = await unlockColor(match.id, match.userId);
+      console.log("RPC result:", result);
       setUnlockState((u) => ({ ...u, [matchId]: true }));
       if (onUnlocked) onUnlocked();
     } catch (err) {
       console.error("Unlock error:", err);
-      // তবুও Unlock দেখাই — Network সমস্যা হলেও ইউজার পড়তে পারবে
+      alert("Unlock error: " + (err?.message || "Unknown"));
+      // তবুও Details দেখাই
       setUnlockState((u) => ({ ...u, [matchId]: true }));
     } finally {
       setProcessing((p) => ({ ...p, [matchId]: false }));
@@ -74,6 +85,7 @@ export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
                 const counting = countdown[m.id] > 0;
                 const countNum = countdown[m.id];
                 const isProcessing = processing[m.id];
+                const isOwn = currentUserId && currentUserId === m.userId;
 
                 return (
                   <div key={m.id} className="match-item-wrapper">
@@ -83,6 +95,7 @@ export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
                         <p className="match-caption">{m.caption}</p>
                         <p className="match-owner">
                           @{m.owner} · {m.ownerCode}
+                          {isOwn && " (আপনার)"}
                         </p>
                       </div>
                       <div
@@ -100,9 +113,11 @@ export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
                           <p className="details-unlocked-text">
                             {m.details || "কোনো বিস্তারিত নেই"}
                           </p>
-                          <div className="earning-note">
-                            💰 ছবির মালিক ৳১ পেয়েছেন
-                          </div>
+                          {!isOwn && (
+                            <div className="earning-note">
+                              💰 ছবির মালিক ৳১ পেয়েছেন
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="details-locked">

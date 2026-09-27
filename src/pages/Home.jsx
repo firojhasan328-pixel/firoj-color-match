@@ -32,6 +32,10 @@ export default function Home() {
   const [galleryRefresh, setGalleryRefresh] = useState(0);
   const [uploadHighlight, setUploadHighlight] = useState(false);
 
+  // স্ক্যান করা ছবি ধরে রাখার জন্য
+  const [scannedFile, setScannedFile] = useState(null);
+  const [scannedPreview, setScannedPreview] = useState(null);
+
   useEffect(() => {
     async function loadUser() {
       const { data } = await supabase.auth.getUser();
@@ -78,9 +82,16 @@ export default function Home() {
     navigate("/login");
   }
 
+  // Upload Section থেকে ছবি সিলেক্ট হলে
   function handleLocalUpload(file, dataUrl) {
     setUploadFile(file);
     setUploadPreview(dataUrl);
+  }
+
+  // Scanner থেকে ছবি আসলে সেটা ধরে রাখি
+  function handleScanImage(file, dataUrl) {
+    setScannedFile(file);
+    setScannedPreview(dataUrl);
   }
 
   async function handleSaveDetails({ color, details }) {
@@ -105,23 +116,32 @@ export default function Home() {
         details,
       });
 
+      // Reset সব
       setUploadFile(null);
       setUploadPreview(null);
+      setScannedFile(null);
+      setScannedPreview(null);
       setGalleryRefresh((k) => k + 1);
       alert("✅ সফলভাবে গ্যালারিতে যোগ হয়েছে!");
     } catch (err) {
       console.error(err);
-      alert("❌ সেভ করা যায়নি: " + (err?.message || "অজানা সমস্যা"));
+      alert("❌ সেভ করা যায়নি: " + (err?.message || "অমানা সমস্যা"));
     } finally {
       setSaving(false);
     }
   }
 
-  // "অ্যাড করুন" বাটনে ক্লিক → Upload Section-এ Scroll + Highlight
+  // ⭐ "অ্যাড করুন" বাটনে ক্লিক — স্ক্যান করা ছবিটাই DetailsModal-এ যাবে
   function handleAddNewFromScan() {
     setScanResult(null);
 
-    // Upload Section-এ Smooth Scroll
+    // স্ক্যান করা ছবি থাকলে সেটাই Upload File হিসেবে সেট করি
+    if (scannedFile && scannedPreview) {
+      setUploadFile(scannedFile);
+      setUploadPreview(scannedPreview);
+    }
+
+    // Upload Section-এ Scroll + Green-Blue Highlight
     setTimeout(() => {
       if (uploadSectionRef.current) {
         uploadSectionRef.current.scrollIntoView({
@@ -130,10 +150,8 @@ export default function Home() {
         });
       }
 
-      // Highlight Effect চালু
       setUploadHighlight(true);
 
-      // ৩ সেকেন্ড পর Highlight বন্ধ
       setTimeout(() => {
         setUploadHighlight(false);
       }, 3000);
@@ -191,7 +209,6 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Upload Section with Ref */}
       <section className="section" ref={uploadSectionRef} id="upload-section">
         <h2 className="section-title">
           <span className="icon">📸</span> ছবি যুক্ত করুন
@@ -212,7 +229,10 @@ export default function Home() {
           ক্যামেরা দিয়ে স্কান করুন — গ্লোবাল গ্যালারি থেকে ম্যাচিং কালার
           খুঁজে বের করুন
         </p>
-        <ScannerBox onResult={setScanResult} />
+        <ScannerBox
+          onResult={setScanResult}
+          onScanImage={handleScanImage}
+        />
       </section>
 
       <section className="section">
@@ -242,6 +262,8 @@ export default function Home() {
           onClose={() => {
             setUploadFile(null);
             setUploadPreview(null);
+            setScannedFile(null);
+            setScannedPreview(null);
           }}
           onSave={handleSaveDetails}
           saving={saving}

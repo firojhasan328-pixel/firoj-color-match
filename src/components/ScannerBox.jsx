@@ -5,7 +5,7 @@ import {
 } from "../services/colorService";
 import { fetchAllColors } from "../services/colorStorage";
 
-export default function ScannerBox({ onResult }) {
+export default function ScannerBox({ onResult, onScanImage }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
@@ -25,6 +25,9 @@ export default function ScannerBox({ onResult }) {
       const dataUrl = event.target.result;
       setPreview(dataUrl);
       setScanning(true);
+
+      // Parent-কে স্ক্যান করা ছবি জানাই
+      if (onScanImage) onScanImage(file, dataUrl);
 
       try {
         const scannedColor = await extractDominantColor(dataUrl);
@@ -71,6 +74,7 @@ export default function ScannerBox({ onResult }) {
     setPreview(null);
     setScanning(false);
     if (onResult) onResult(null);
+    if (onScanImage) onScanImage(null, null);
   }
 
   return (

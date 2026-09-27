@@ -56,7 +56,6 @@ export default function ResultModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Scanned Color Header */}
         <div className="modal-scan-preview">
           <div
             className="scan-color-chip"
@@ -84,9 +83,7 @@ export default function ResultModal({
 
                 return (
                   <div key={m.id} className="match-item-wrapper">
-                    {/* ---------- VS Comparison ---------- */}
                     <div className="vs-comparison">
-                      {/* বাম: স্ক্যান করা ছবি */}
                       <div className="vs-side">
                         <img
                           src={scannedImage || m.url}
@@ -96,12 +93,10 @@ export default function ResultModal({
                         <p className="vs-hex">{scannedColor.hex}</p>
                       </div>
 
-                      {/* মাঝ: VS */}
                       <div className="vs-divider">
                         <span className="vs-text">Vs</span>
                       </div>
 
-                      {/* ডান: Match করা ছবি */}
                       <div className="vs-side">
                         <img
                           src={m.url}
@@ -112,7 +107,6 @@ export default function ResultModal({
                       </div>
                     </div>
 
-                    {/* ---------- Owner Info ---------- */}
                     <div className="vs-owner-bar">
                       <span className="vs-owner-text">
                         @{m.owner} · {m.ownerCode}
@@ -120,53 +114,51 @@ export default function ResultModal({
                       </span>
                     </div>
 
-                    {/* ---------- Details Section ---------- */}
-                    <div className="match-details-section">
-                      {unlocked ? (
-                        <div className="details-unlocked">
-                          <p className="details-unlocked-label">
-                            📋 বিস্তারিত
-                          </p>
-                          <p className="details-unlocked-text">
-                            {m.details || "কোনো বিস্তারিত নেই"}
-                          </p>
-                          {!isOwn && (
-                            <div className="earning-note">
-                              💰 ছবির মালিক ৳১ পেয়েছেন
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="details-locked">
-                          <div className="lock-icon">🔒</div>
-                          <p className="lock-text">
-                            বিস্তারিত দেখতে Unlock করুন
-                          </p>
-                          {isProcessing ? (
-                            <div className="scanner-status">
-                              <span className="pulse" />
-                              Unlock হচ্ছে...
-                            </div>
-                          ) : counting ? (
-                            <div className="countdown-box">
-                              <span className="countdown-num">
-                                {countNum}
-                              </span>
-                              <span className="countdown-label">
-                                সেকেন্ড অপেক্ষা করুন...
-                              </span>
-                            </div>
-                          ) : (
-                            <button
-                              className="unlock-btn"
-                              onClick={() => handleUnlock(m.id)}
-                            >
-                              🔓 Unlock করুন
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    {/* Details Section */}
+                    {unlocked ? (
+                      <div className="details-unlocked">
+                        <p className="details-unlocked-label">
+                          📋 বিস্তারিত
+                        </p>
+                        <p className="details-unlocked-text">
+                          {m.details || "কোনো বিস্তারিত নেই"}
+                        </p>
+                        {!isOwn && (
+                          <div className="earning-note">
+                            💰 ছবির মালিক ৳১ পেয়েছেন
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="details-locked">
+                        <div className="lock-icon">🔒</div>
+                        <p className="lock-text">
+                          বিস্তারিত দেখতে Unlock করুন
+                        </p>
+
+                        {isProcessing ? (
+                          <div className="unlock-status">
+                            <span className="pulse" />
+                            Unlock হচ্ছে...
+                          </div>
+                        ) : counting ? (
+                          <div className="countdown-box">
+                            <span className="countdown-num">{countNum}</span>
+                            <span className="countdown-label">
+                              সেকেন্ড অপেক্ষা করুন...
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="unlock-btn"
+                            onClick={() => handleUnlock(m.id)}
+                          >
+                            🔓 Unlock করুন
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

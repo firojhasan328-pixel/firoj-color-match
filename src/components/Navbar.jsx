@@ -9,7 +9,6 @@ export default function Navbar({
 }) {
   return (
     <nav className="navbar">
-      {/* বাম: মেনু বাটন */}
       <button
         className="nav-btn"
         onClick={onMenuClick}
@@ -18,13 +17,11 @@ export default function Navbar({
         ☰
       </button>
 
-      {/* মাঝ: স্বাগতম মেসেজ */}
       <div className="nav-welcome">
         <div className="hello">স্বাগতম</div>
         <div className="name">{userName}</div>
       </div>
 
-      {/* ডান: ব্যালেন্স বক্স */}
       <BalanceBox amount={balance} onClick={onBalanceClick} />
     </nav>
   );

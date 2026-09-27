@@ -27,13 +27,9 @@ export default function ScannerBox({ onResult }) {
       setScanning(true);
 
       try {
-        // ১। স্ক্যান করা ছবি থেকে Color বের করি
         const scannedColor = await extractDominantColor(dataUrl);
-
-        // ২। Global Gallery থেকে সব ছবি আনি
         const allColors = await fetchAllColors();
 
-        // ৩। Database Row-কে Matchable Format-এ নিই
         const galleryImages = allColors.map((row) => ({
           id: row.id,
           url: row.image_url,
@@ -46,7 +42,6 @@ export default function ScannerBox({ onResult }) {
           details: row.details,
         }));
 
-        // ৪। শক্তিশালী Match Logic চালাই
         const matches = findMatchingImages(scannedColor, galleryImages);
 
         const result = {
@@ -101,7 +96,6 @@ export default function ScannerBox({ onResult }) {
             </button>
           </div>
 
-          {/* Camera Input */}
           <input
             ref={cameraInputRef}
             type="file"
@@ -110,8 +104,6 @@ export default function ScannerBox({ onResult }) {
             onChange={handleFileChange}
             style={{ display: "none" }}
           />
-
-          {/* Gallery Input */}
           <input
             ref={galleryInputRef}
             type="file"

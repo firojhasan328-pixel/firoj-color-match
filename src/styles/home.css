@@ -1116,3 +1116,42 @@
     transform: scale(1.02);
   }
 }
+/* ---------- Upload Highlight (Green + Blue) ---------- */
+.upload-highlight {
+  animation: highlightPulse 1.2s ease 3;
+  border-radius: 22px;
+}
+
+@keyframes highlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+    transform: scale(1);
+    background: transparent;
+  }
+  25% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.3);
+    transform: scale(1.015);
+    background: rgba(16, 185, 129, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 0 16px rgba(14, 165, 233, 0.2),
+      0 0 0 6px rgba(16, 185, 129, 0.35);
+    transform: scale(1.03);
+    background: linear-gradient(
+      135deg,
+      rgba(16, 185, 129, 0.12),
+      rgba(14, 165, 233, 0.12)
+    );
+  }
+  75% {
+    box-shadow: 0 0 0 10px rgba(14, 165, 233, 0.3);
+    transform: scale(1.015);
+    background: rgba(14, 165, 233, 0.06);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    transform: scale(1);
+    background: transparent;
+  }
+}

@@ -3,21 +3,23 @@ import {
   extractDominantColor,
   findMatchingImages,
 } from "../services/colorService";
-import { sampleColorImages } from "../data/sampleColors";
+import { fetchAllColors } from "../services/colorStorage";
 
 export default function ScannerBox({ onResult }) {
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [scanning, setScanning] = useState(false);
 
-  function handleScanClick() {
-    fileInputRef.current?.click();
+  function handleCameraClick() {
+    cameraInputRef.current?.click();
   }
 
-  async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function handleGalleryClick() {
+    galleryInputRef.current?.click();
+  }
 
+  async function processImage(file) {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target.result;
@@ -25,18 +27,37 @@ export default function ScannerBox({ onResult }) {
       setScanning(true);
 
       try {
-        const color = await extractDominantColor(dataUrl);
-        const matches = findMatchingImages(color, sampleColorImages);
+        // ১। স্ক্যান করা ছবি থেকে Color বের করি
+        const scannedColor = await extractDominantColor(dataUrl);
+
+        // ২। Global Gallery থেকে সব ছবি আনি
+        const allColors = await fetchAllColors();
+
+        // ৩। Database Row-কে Matchable Format-এ নিই
+        const galleryImages = allColors.map((row) => ({
+          id: row.id,
+          url: row.image_url,
+          caption: row.details?.slice(0, 30) || row.owner_name,
+          hex: row.color_hex,
+          color: { r: row.color_r, g: row.color_g, b: row.color_b },
+          owner: row.owner_name,
+          ownerCode: row.user_code,
+          userId: row.user_id,
+          details: row.details,
+        }));
+
+        // ৪। শক্তিশালী Match Logic চালাই
+        const matches = findMatchingImages(scannedColor, galleryImages);
 
         const result = {
           found: matches.length > 0,
-          scannedColor: color,
+          scannedColor,
           matches,
         };
 
         if (onResult) onResult(result);
       } catch (err) {
-        console.error("Color extraction failed:", err);
+        console.error("Scan error:", err);
       } finally {
         setScanning(false);
       }
@@ -44,10 +65,16 @@ export default function ScannerBox({ onResult }) {
     reader.readAsDataURL(file);
   }
 
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImage(file);
+    if (e.target) e.target.value = "";
+  }
+
   function handleReset() {
     setPreview(null);
     setScanning(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
     if (onResult) onResult(null);
   }
 
@@ -58,17 +85,37 @@ export default function ScannerBox({ onResult }) {
           <div className="scanner-icon">🎯</div>
           <h3>AI কালার স্ক্যানার</h3>
           <p>
-            যেকোনো কালার বা ইমেজের উপর স্ক্যান করুন — আমরা গ্লোবাল
-            গ্যালারিতে তার ম্যাচ খুঁজে বের করব।
+            ক্যামেরা দিয়ে স্কান করুন অথবা গ্যালারি থেকে ছবি নির্বাচন করুন —
+            আমরা গ্লোবাল গ্যালারিতে তার ম্যাচ খুঁজে বের করব।
           </p>
-          <button className="scan-btn" onClick={handleScanClick}>
-            📷 স্কান করুন
-          </button>
+
+          <div className="scan-btn-group">
+            <button className="scan-btn" onClick={handleCameraClick}>
+              📷 ক্যামেরা
+            </button>
+            <button
+              className="scan-btn secondary"
+              onClick={handleGalleryClick}
+            >
+              🖼️ গ্যালারি
+            </button>
+          </div>
+
+          {/* Camera Input */}
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+
+          {/* Gallery Input */}
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
             onChange={handleFileChange}
             style={{ display: "none" }}
           />

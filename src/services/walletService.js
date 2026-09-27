@@ -13,7 +13,6 @@ export async function getMyBalance() {
     .single();
 
   if (error) {
-    // যদি Wallet না থাকে, তৈরি করি
     if (error.code === "PGRST116") {
       await supabase
         .from("wallets")
@@ -28,10 +27,11 @@ export async function getMyBalance() {
 }
 
 // Unlock + টাকা যোগ (RPC Call)
+// ⚠️ গুরুত্বপূর্ণ: Param-এর নাম p_color_id এবং p_owner_id — SQL Function-এর সাথে মিল রাখতে হবে
 export async function unlockColor(colorId, ownerId) {
   const { data, error } = await supabase.rpc("unlock_color", {
-    color_id: colorId,
-    owner_id: ownerId,
+    p_color_id: colorId,
+    p_owner_id: ownerId,
   });
 
   if (error) throw error;

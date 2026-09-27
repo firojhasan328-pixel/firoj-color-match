@@ -125,6 +125,38 @@ export async function uploadColorImage(file, userId) {
 }
 
 // ========================================
+// Duplicate Color Check (Exact HEX Match)
+// ========================================
+export async function checkDuplicateColor(colorHex) {
+  const { data, error } = await supabase
+    .from("colors")
+    .select("id, user_id, owner_name, user_code, image_url, color_hex, details, created_at")
+    .eq("color_hex", colorHex.toUpperCase())
+    .limit(1);
+
+  if (error) {
+    console.error("Duplicate check error:", error);
+    return null;
+  }
+
+  return data && data.length > 0 ? data[0] : null;
+}
+
+// ========================================
+// একটি Color Record ID দিয়ে আনা
+// ========================================
+export async function fetchColorById(colorId) {
+  const { data, error } = await supabase
+    .from("colors")
+    .select("*")
+    .eq("id", colorId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// ========================================
 // Database-এ color info সেভ
 // ========================================
 export async function saveColorRecord({

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import UploadBox from "../components/UploadBox";
@@ -19,6 +19,7 @@ import "../styles/home.css";
 
 export default function Home() {
   const navigate = useNavigate();
+  const uploadSectionRef = useRef(null);
   const [userName, setUserName] = useState("User");
   const [userId, setUserId] = useState(null);
   const [userCode, setUserCode] = useState("");
@@ -29,6 +30,7 @@ export default function Home() {
   const [uploadPreview, setUploadPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [galleryRefresh, setGalleryRefresh] = useState(0);
+  const [uploadHighlight, setUploadHighlight] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -115,6 +117,29 @@ export default function Home() {
     }
   }
 
+  // "অ্যাড করুন" বাটনে ক্লিক → Upload Section-এ Scroll + Highlight
+  function handleAddNewFromScan() {
+    setScanResult(null);
+
+    // Upload Section-এ Smooth Scroll
+    setTimeout(() => {
+      if (uploadSectionRef.current) {
+        uploadSectionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+
+      // Highlight Effect চালু
+      setUploadHighlight(true);
+
+      // ৩ সেকেন্ড পর Highlight বন্ধ
+      setTimeout(() => {
+        setUploadHighlight(false);
+      }, 3000);
+    }, 200);
+  }
+
   return (
     <div className="home-page">
       <Navbar
@@ -166,14 +191,17 @@ export default function Home() {
         </p>
       </section>
 
-      <section className="section">
+      {/* Upload Section with Ref */}
+      <section className="section" ref={uploadSectionRef} id="upload-section">
         <h2 className="section-title">
           <span className="icon">📸</span> ছবি যুক্ত করুন
         </h2>
         <p className="section-sub">
           ডিভাইস থেকে ছবি নির্বাচন করুন — গ্লোবাল গ্যালারিতে যোগ হবে
         </p>
-        <UploadBox onLocalUpload={handleLocalUpload} />
+        <div className={uploadHighlight ? "upload-highlight" : ""}>
+          <UploadBox onLocalUpload={handleLocalUpload} />
+        </div>
       </section>
 
       <section className="section">
@@ -202,10 +230,7 @@ export default function Home() {
       <ResultModal
         result={scanResult}
         onClose={() => setScanResult(null)}
-        onAddNew={() => {
-          alert("স্ক্যান করা কালার অ্যাড করার ফিচার পরের ধাপে আসবে।");
-          setScanResult(null);
-        }}
+        onAddNew={handleAddNewFromScan}
         onUnlocked={refreshBalance}
         currentUserId={userId}
       />

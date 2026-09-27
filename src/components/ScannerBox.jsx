@@ -26,7 +26,6 @@ export default function ScannerBox({ onResult, onScanImage }) {
       setPreview(dataUrl);
       setScanning(true);
 
-      // Parent-কে স্ক্যান করা ছবি জানাই
       if (onScanImage) onScanImage(file, dataUrl);
 
       try {
@@ -50,6 +49,7 @@ export default function ScannerBox({ onResult, onScanImage }) {
         const result = {
           found: matches.length > 0,
           scannedColor,
+          scannedImage: dataUrl, // ⭐ স্ক্যান করা ছবির Data URL
           matches,
         };
 

@@ -207,6 +207,7 @@ export default function Home() {
           setScanResult(null);
         }}
         onUnlocked={refreshBalance}
+        currentUserId={userId}
       />
 
       {uploadPreview && (

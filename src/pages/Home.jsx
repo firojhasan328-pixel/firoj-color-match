@@ -6,6 +6,7 @@ import ScannerBox from "../components/ScannerBox";
 import Gallery from "../components/Gallery";
 import ResultModal from "../components/ResultModal";
 import DetailsModal from "../components/DetailsModal";
+import DuplicateModal from "../components/DuplicateModal";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import { getMyProfile } from "../services/profileService";
@@ -14,6 +15,7 @@ import {
   uploadColorImage,
   saveColorRecord,
   addWatermarkToImage,
+  checkDuplicateColor,
 } from "../services/colorStorage";
 import "../styles/home.css";
 
@@ -31,10 +33,9 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [galleryRefresh, setGalleryRefresh] = useState(0);
   const [uploadHighlight, setUploadHighlight] = useState(false);
-
-  // স্ক্যান করা ছবি ধরে রাখার জন্য
   const [scannedFile, setScannedFile] = useState(null);
   const [scannedPreview, setScannedPreview] = useState(null);
+  const [duplicateInfo, setDuplicateInfo] = useState(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -82,23 +83,35 @@ export default function Home() {
     navigate("/login");
   }
 
-  // Upload Section থেকে ছবি সিলেক্ট হলে
   function handleLocalUpload(file, dataUrl) {
     setUploadFile(file);
     setUploadPreview(dataUrl);
   }
 
-  // Scanner থেকে ছবি আসলে সেটা ধরে রাখি
   function handleScanImage(file, dataUrl) {
     setScannedFile(file);
     setScannedPreview(dataUrl);
   }
 
+  // ⭐ Duplicate Check সহ Save
   async function handleSaveDetails({ color, details }) {
     if (!userId || !uploadFile) return;
     setSaving(true);
 
     try {
+      // ১। Duplicate Check (Exact HEX Match)
+      const duplicate = await checkDuplicateColor(color.hex);
+
+      if (duplicate) {
+        // Duplicate পাওয়া গেছে → Modal দেখাই, Save বন্ধ করি
+        setDuplicateInfo(duplicate);
+        setUploadFile(null);
+        setUploadPreview(null);
+        setSaving(false);
+        return;
+      }
+
+      // ২। Watermark + Upload + Save
       const watermarkedFile = await addWatermarkToImage(
         uploadFile,
         userCode || "CM000000",
@@ -116,7 +129,6 @@ export default function Home() {
         details,
       });
 
-      // Reset সব
       setUploadFile(null);
       setUploadPreview(null);
       setScannedFile(null);
@@ -125,23 +137,20 @@ export default function Home() {
       alert("✅ সফলভাবে গ্যালারিতে যোগ হয়েছে!");
     } catch (err) {
       console.error(err);
-      alert("❌ সেভ করা যায়নি: " + (err?.message || "অমানা সমস্যা"));
+      alert("❌ সেভ করা যায়নি: " + (err?.message || "অজানা সমস্যা"));
     } finally {
       setSaving(false);
     }
   }
 
-  // ⭐ "অ্যাড করুন" বাটনে ক্লিক — স্ক্যান করা ছবিটাই DetailsModal-এ যাবে
   function handleAddNewFromScan() {
     setScanResult(null);
 
-    // স্ক্যান করা ছবি থাকলে সেটাই Upload File হিসেবে সেট করি
     if (scannedFile && scannedPreview) {
       setUploadFile(scannedFile);
       setUploadPreview(scannedPreview);
     }
 
-    // Upload Section-এ Scroll + Green-Blue Highlight
     setTimeout(() => {
       if (uploadSectionRef.current) {
         uploadSectionRef.current.scrollIntoView({
@@ -156,6 +165,17 @@ export default function Home() {
         setUploadHighlight(false);
       }, 3000);
     }, 200);
+  }
+
+  function handleDuplicateViewDetails() {
+    if (duplicateInfo?.id) {
+      navigate(`/details/${duplicateInfo.id}`);
+    }
+    setDuplicateInfo(null);
+  }
+
+  function handleDuplicateCancel() {
+    setDuplicateInfo(null);
   }
 
   return (
@@ -267,6 +287,14 @@ export default function Home() {
           }}
           onSave={handleSaveDetails}
           saving={saving}
+        />
+      )}
+
+      {duplicateInfo && (
+        <DuplicateModal
+          existingColor={duplicateInfo}
+          onViewDetails={handleDuplicateViewDetails}
+          onCancel={handleDuplicateCancel}
         />
       )}
     </div>

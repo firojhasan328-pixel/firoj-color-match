@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { unlockColor } from "../services/walletService";
 
-export default function ResultModal({ result, onClose, onAddNew }) {
+export default function ResultModal({ result, onClose, onAddNew, onUnlocked }) {
   const [unlockState, setUnlockState] = useState({});
   const [countdown, setCountdown] = useState({});
+  const [processing, setProcessing] = useState({});
 
   useEffect(() => {
-    // Countdown Timer চালানো
     const timers = [];
     Object.keys(countdown).forEach((id) => {
       if (countdown[id] > 0) {
@@ -14,7 +15,8 @@ export default function ResultModal({ result, onClose, onAddNew }) {
         }, 1000);
         timers.push(timer);
       } else if (countdown[id] === 0) {
-        setUnlockState((u) => ({ ...u, [id]: true }));
+        // Countdown শেষ → RPC Call → Unlock
+        finalizeUnlock(id);
       }
     });
     return () => timers.forEach(clearTimeout);
@@ -24,14 +26,32 @@ export default function ResultModal({ result, onClose, onAddNew }) {
 
   const { found, scannedColor, matches } = result;
 
-  function handleUnlock(id) {
-    setCountdown((c) => ({ ...c, [id]: 10 }));
+  function handleUnlock(match) {
+    setCountdown((c) => ({ ...c, [match.id]: 10 }));
+  }
+
+  async function finalizeUnlock(matchId) {
+    const match = matches.find((m) => m.id === matchId);
+    if (!match) return;
+
+    setProcessing((p) => ({ ...p, [matchId]: true }));
+
+    try {
+      await unlockColor(match.id, match.userId);
+      setUnlockState((u) => ({ ...u, [matchId]: true }));
+      if (onUnlocked) onUnlocked();
+    } catch (err) {
+      console.error("Unlock error:", err);
+      // তবুও Unlock দেখাই — Network সমস্যা হলেও ইউজার পড়তে পারবে
+      setUnlockState((u) => ({ ...u, [matchId]: true }));
+    } finally {
+      setProcessing((p) => ({ ...p, [matchId]: false }));
+    }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Scanned Color Preview */}
         <div className="modal-scan-preview">
           <div
             className="scan-color-chip"
@@ -53,6 +73,7 @@ export default function ResultModal({ result, onClose, onAddNew }) {
                 const unlocked = unlockState[m.id];
                 const counting = countdown[m.id] > 0;
                 const countNum = countdown[m.id];
+                const isProcessing = processing[m.id];
 
                 return (
                   <div key={m.id} className="match-item-wrapper">
@@ -70,7 +91,6 @@ export default function ResultModal({ result, onClose, onAddNew }) {
                       />
                     </div>
 
-                    {/* Details Section */}
                     <div className="match-details-section">
                       {unlocked ? (
                         <div className="details-unlocked">
@@ -90,7 +110,12 @@ export default function ResultModal({ result, onClose, onAddNew }) {
                           <p className="lock-text">
                             বিস্তারিত দেখতে Unlock করুন
                           </p>
-                          {counting ? (
+                          {isProcessing ? (
+                            <div className="scanner-status">
+                              <span className="pulse" />
+                              Unlock হচ্ছে...
+                            </div>
+                          ) : counting ? (
                             <div className="countdown-box">
                               <span className="countdown-num">
                                 {countNum}
@@ -102,7 +127,7 @@ export default function ResultModal({ result, onClose, onAddNew }) {
                           ) : (
                             <button
                               className="unlock-btn"
-                              onClick={() => handleUnlock(m.id)}
+                              onClick={() => handleUnlock(m)}
                             >
                               🔓 Unlock করুন
                             </button>

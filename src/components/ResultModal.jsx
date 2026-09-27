@@ -1,9 +1,32 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function ResultModal({ result, onClose, onAddNew }) {
+  const [unlockState, setUnlockState] = useState({});
+  const [countdown, setCountdown] = useState({});
+
+  useEffect(() => {
+    // Countdown Timer চালানো
+    const timers = [];
+    Object.keys(countdown).forEach((id) => {
+      if (countdown[id] > 0) {
+        const timer = setTimeout(() => {
+          setCountdown((c) => ({ ...c, [id]: c[id] - 1 }));
+        }, 1000);
+        timers.push(timer);
+      } else if (countdown[id] === 0) {
+        setUnlockState((u) => ({ ...u, [id]: true }));
+      }
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [countdown]);
+
   if (!result) return null;
 
   const { found, scannedColor, matches } = result;
+
+  function handleUnlock(id) {
+    setCountdown((c) => ({ ...c, [id]: 10 }));
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -26,19 +49,70 @@ export default function ResultModal({ result, onClose, onAddNew }) {
               🎉 {matches.length}টি ম্যাচ পাওয়া গেছে!
             </h3>
             <div className="match-list">
-              {matches.map((m) => (
-                <div key={m.id} className="match-item">
-                  <img src={m.url} alt={m.caption} />
-                  <div className="match-info">
-                    <p className="match-caption">{m.caption}</p>
-                    <p className="match-owner">@{m.owner}</p>
+              {matches.map((m) => {
+                const unlocked = unlockState[m.id];
+                const counting = countdown[m.id] > 0;
+                const countNum = countdown[m.id];
+
+                return (
+                  <div key={m.id} className="match-item-wrapper">
+                    <div className="match-item">
+                      <img src={m.url} alt={m.caption} />
+                      <div className="match-info">
+                        <p className="match-caption">{m.caption}</p>
+                        <p className="match-owner">
+                          @{m.owner} · {m.ownerCode}
+                        </p>
+                      </div>
+                      <div
+                        className="match-chip"
+                        style={{ background: m.hex }}
+                      />
+                    </div>
+
+                    {/* Details Section */}
+                    <div className="match-details-section">
+                      {unlocked ? (
+                        <div className="details-unlocked">
+                          <p className="details-unlocked-label">
+                            📋 বিস্তারিত
+                          </p>
+                          <p className="details-unlocked-text">
+                            {m.details || "কোনো বিস্তারিত নেই"}
+                          </p>
+                          <div className="earning-note">
+                            💰 ছবির মালিক ৳১ পেয়েছেন
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="details-locked">
+                          <div className="lock-icon">🔒</div>
+                          <p className="lock-text">
+                            বিস্তারিত দেখতে Unlock করুন
+                          </p>
+                          {counting ? (
+                            <div className="countdown-box">
+                              <span className="countdown-num">
+                                {countNum}
+                              </span>
+                              <span className="countdown-label">
+                                সেকেন্ড অপেক্ষা করুন...
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              className="unlock-btn"
+                              onClick={() => handleUnlock(m.id)}
+                            >
+                              🔓 Unlock করুন
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div
-                    className="match-chip"
-                    style={{ background: m.hex }}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button className="modal-btn primary" onClick={onClose}>
               বন্ধ করুন

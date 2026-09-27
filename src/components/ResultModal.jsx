@@ -29,10 +29,10 @@ export default function ResultModal({
 
   if (!result) return null;
 
-  const { found, scannedColor, matches } = result;
+  const { found, scannedColor, scannedImage, matches } = result;
 
-  function handleUnlock(match) {
-    setCountdown((c) => ({ ...c, [match.id]: 10 }));
+  function handleUnlock(matchId) {
+    setCountdown((c) => ({ ...c, [matchId]: 10 }));
   }
 
   async function finalizeUnlock(matchId) {
@@ -42,18 +42,11 @@ export default function ResultModal({
     setProcessing((p) => ({ ...p, [matchId]: true }));
 
     try {
-      console.log("Calling unlock_color RPC:", {
-        colorId: match.id,
-        ownerId: match.userId,
-      });
-      const result = await unlockColor(match.id, match.userId);
-      console.log("RPC result:", result);
+      await unlockColor(match.id, match.userId);
       setUnlockState((u) => ({ ...u, [matchId]: true }));
       if (onUnlocked) onUnlocked();
     } catch (err) {
       console.error("Unlock error:", err);
-      alert("Unlock error: " + (err?.message || "Unknown"));
-      // তবুও Details দেখাই
       setUnlockState((u) => ({ ...u, [matchId]: true }));
     } finally {
       setProcessing((p) => ({ ...p, [matchId]: false }));
@@ -63,6 +56,7 @@ export default function ResultModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        {/* Scanned Color Header */}
         <div className="modal-scan-preview">
           <div
             className="scan-color-chip"
@@ -79,6 +73,7 @@ export default function ResultModal({
             <h3 className="modal-title">
               🎉 {matches.length}টি ম্যাচ পাওয়া গেছে!
             </h3>
+
             <div className="match-list">
               {matches.map((m) => {
                 const unlocked = unlockState[m.id];
@@ -89,21 +84,43 @@ export default function ResultModal({
 
                 return (
                   <div key={m.id} className="match-item-wrapper">
-                    <div className="match-item">
-                      <img src={m.url} alt={m.caption} />
-                      <div className="match-info">
-                        <p className="match-caption">{m.caption}</p>
-                        <p className="match-owner">
-                          @{m.owner} · {m.ownerCode}
-                          {isOwn && " (আপনার)"}
-                        </p>
+                    {/* ---------- VS Comparison ---------- */}
+                    <div className="vs-comparison">
+                      {/* বাম: স্ক্যান করা ছবি */}
+                      <div className="vs-side">
+                        <img
+                          src={scannedImage || m.url}
+                          alt="Scanned"
+                          className="vs-image"
+                        />
+                        <p className="vs-hex">{scannedColor.hex}</p>
                       </div>
-                      <div
-                        className="match-chip"
-                        style={{ background: m.hex }}
-                      />
+
+                      {/* মাঝ: VS */}
+                      <div className="vs-divider">
+                        <span className="vs-text">Vs</span>
+                      </div>
+
+                      {/* ডান: Match করা ছবি */}
+                      <div className="vs-side">
+                        <img
+                          src={m.url}
+                          alt={m.caption}
+                          className="vs-image"
+                        />
+                        <p className="vs-hex">{m.hex}</p>
+                      </div>
                     </div>
 
+                    {/* ---------- Owner Info ---------- */}
+                    <div className="vs-owner-bar">
+                      <span className="vs-owner-text">
+                        @{m.owner} · {m.ownerCode}
+                        {isOwn && " (আপনার)"}
+                      </span>
+                    </div>
+
+                    {/* ---------- Details Section ---------- */}
                     <div className="match-details-section">
                       {unlocked ? (
                         <div className="details-unlocked">
@@ -142,7 +159,7 @@ export default function ResultModal({
                           ) : (
                             <button
                               className="unlock-btn"
-                              onClick={() => handleUnlock(m)}
+                              onClick={() => handleUnlock(m.id)}
                             >
                               🔓 Unlock করুন
                             </button>
@@ -154,6 +171,7 @@ export default function ResultModal({
                 );
               })}
             </div>
+
             <button className="modal-btn primary" onClick={onClose}>
               বন্ধ করুন
             </button>

@@ -10,6 +10,23 @@ import {
   WEIGHT_STEP,
 } from "../data/colorMaster";
 
+const MAX_ROWS = 7;
+
+// নতুন খালি Row বানানো
+function makeEmptyRow() {
+  return {
+    id: Date.now() + Math.random(),
+    colorName: "Yellow",
+    colorCode: "",
+    setType: "1 kg",
+    weight: 20,
+    showCustomName: false,
+    showCustomCode: false,
+    customColorName: "",
+    customColorCode: "",
+  };
+}
+
 export default function DetailsModal({
   imageFile,
   imagePreview,
@@ -21,22 +38,14 @@ export default function DetailsModal({
   const [analyzing, setAnalyzing] = useState(true);
   const [error, setError] = useState("");
 
-  // Form Fields
-  const [colorName, setColorName] = useState("Yellow");
-  const [colorCode, setColorCode] = useState("");
-  const [setType, setSetType] = useState("1 kg");
-  const [weight, setWeight] = useState(20);
+  // ৭টি Row
+  const [rows, setRows] = useState([makeEmptyRow()]);
 
-  // "অন্যান্য" States
-  const [customColorName, setCustomColorName] = useState("");
-  const [customColorCode, setCustomColorCode] = useState("");
-  const [showCustomName, setShowCustomName] = useState(false);
-  const [showCustomCode, setShowCustomCode] = useState(false);
-
-  // Dropdown Open States
-  const [openSetDropdown, setOpenSetDropdown] = useState(false);
-  const [openNameDropdown, setOpenNameDropdown] = useState(false);
-  const [openCodeDropdown, setOpenCodeDropdown] = useState(false);
+  // কোন Row-এর ড্রপডাউন খোলা আছে
+  const [openDropdown, setOpenDropdown] = useState({
+    rowId: null,
+    type: null, // "name" | "code" | "set"
+  });
 
   useEffect(() => {
     async function analyze() {
@@ -52,98 +61,146 @@ export default function DetailsModal({
     if (imagePreview) analyze();
   }, [imagePreview]);
 
-  // Color Name পরিবর্তন হলে Code Auto-Select
-  useEffect(() => {
-    if (!showCustomName) {
-      const codes = getCodesByColorName(colorName);
-      setColorCode(codes[0] || "");
-      setShowCustomCode(false);
-    }
-  }, [colorName, showCustomName]);
+  // Row-এ পরিবর্তন
+  function updateRow(rowId, updates) {
+    setRows((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, ...updates } : r))
+    );
+  }
 
-  function handleColorNameSelect(name) {
+  // Row যোগ
+  function addRow() {
+    if (rows.length >= MAX_ROWS) {
+      alert(`সর্বোচ্চ ${MAX_ROWS}টি কালার যোগ করা যাবে।`);
+      return;
+    }
+    setRows((prev) => [...prev, makeEmptyRow()]);
+  }
+
+  // Row মুছে ফেলা
+  function removeRow(rowId) {
+    if (rows.length === 1) {
+      alert("কমপক্ষে ১টি কালার থাকতে হবে।");
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== rowId));
+  }
+
+  // Color Name সিলেক্ট
+  function handleColorNameSelect(rowId, name) {
     if (name === "__OTHER__") {
-      setShowCustomName(true);
-      setCustomColorName("");
-      setOpenNameDropdown(false);
+      updateRow(rowId, {
+        showCustomName: true,
+        customColorName: "",
+        colorCode: "",
+        showCustomCode: true,
+      });
     } else {
-      setShowCustomName(false);
-      setColorName(name);
-      setOpenNameDropdown(false);
+      const codes = getCodesByColorName(name);
+      updateRow(rowId, {
+        colorName: name,
+        showCustomName: false,
+        colorCode: codes[0] || "",
+        showCustomCode: false,
+      });
     }
+    setOpenDropdown({ rowId: null, type: null });
   }
 
-  function handleColorCodeSelect(code) {
+  // Color Code সিলেক্ট
+  function handleColorCodeSelect(rowId, code) {
     if (code === "__OTHER__") {
-      setShowCustomCode(true);
-      setCustomColorCode("");
-      setOpenCodeDropdown(false);
+      updateRow(rowId, { showCustomCode: true, customColorCode: "" });
     } else {
-      setShowCustomCode(false);
-      setColorCode(code);
-      setOpenCodeDropdown(false);
+      updateRow(rowId, { colorCode: code, showCustomCode: false });
     }
+    setOpenDropdown({ rowId: null, type: null });
   }
 
-  function adjustWeight(delta) {
-    let newW = weight + delta;
+  // Weight Adjust
+  function adjustWeight(rowId, delta) {
+    const row = rows.find((r) => r.id === rowId);
+    if (!row) return;
+    let newW = row.weight + delta;
     if (newW < WEIGHT_MIN) newW = WEIGHT_MIN;
     if (newW > WEIGHT_MAX) newW = WEIGHT_MAX;
-    setWeight(newW);
+    updateRow(rowId, { weight: newW });
   }
 
+  // Total Weight
+  const totalWeight = rows.reduce((sum, r) => {
+    const w = parseFloat(r.weight) || 0;
+    return sum + w;
+  }, 0);
+
+  // Save Handler
   function handleSave() {
     setError("");
 
     // Validation
-    const finalColorName = showCustomName
-      ? customColorName.trim()
-      : colorName;
-    const finalColorCode = showCustomCode
-      ? customColorCode.trim()
-      : colorCode;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const finalName = r.showCustomName
+        ? r.customColorName.trim()
+        : r.colorName;
+      const finalCode = r.showCustomCode
+        ? r.customColorCode.trim()
+        : r.colorCode;
 
-    if (!finalColorName) {
-      setError("কালারের নাম দিন।");
-      return;
+      if (!finalName) {
+        setError(`কালার ${i + 1}: কালারের নাম দিন।`);
+        return;
+      }
+      if (!finalCode) {
+        setError(`কালার ${i + 1}: কোড দিন।`);
+        return;
+      }
+      if (
+        r.weight === null ||
+        r.weight < WEIGHT_MIN ||
+        r.weight > WEIGHT_MAX
+      ) {
+        setError(
+          `কালার ${i + 1}: পরিমাণ ${WEIGHT_MIN} - ${WEIGHT_MAX} gm এর মধ্যে হতে হবে।`
+        );
+        return;
+      }
     }
-    if (!finalColorCode) {
-      setError("কালার কোড দিন।");
-      return;
-    }
-    if (!setType) {
-      setError("সেট নির্বাচন করুন।");
-      return;
-    }
-    if (weight === null || weight < WEIGHT_MIN || weight > WEIGHT_MAX) {
-      setError(`পরিমাণ ${WEIGHT_MIN} - ${WEIGHT_MAX} gm এর মধ্যে হতে হবে।`);
-      return;
-    }
+
     if (!color) {
       setError("কালার বিশ্লেষণ শেষ হয়নি।");
       return;
     }
 
+    // Final Mix Data তৈরি
+    const mixData = rows.map((r) => ({
+      name: r.showCustomName ? r.customColorName.trim() : r.colorName,
+      code: r.showCustomCode ? r.customColorCode.trim() : r.colorCode,
+      setType: r.setType,
+      weight: parseFloat(r.weight) || 0,
+    }));
+
+    // সুন্দর Details Text (Gallery-র জন্য)
+    const detailsText = mixData
+      .map((m) => `${m.name} (${m.code}) · ${m.weight.toFixed(2)}gm · ${m.setType}`)
+      .join(" + ");
+
     onSave({
       color,
-      colorName: finalColorName,
-      colorCode: finalColorCode,
-      setType,
-      weight,
+      colorMix: mixData,
+      details: detailsText,
+      totalWeight,
     });
   }
-
-  const availableCodes = getCodesByColorName(colorName);
-  const currentHex = showCustomName
-    ? "#CCCCCC"
-    : getHexByColorName(colorName);
 
   return (
     <div className="details-fullscreen-overlay">
       <div className="details-fullscreen-card">
         {/* Header */}
         <div className="details-header">
-          <h2 className="details-header-title">📝 ছবির বিস্তারিত দিন</h2>
+          <h2 className="details-header-title">
+            📝 ছবির বিস্তারিত দিন
+          </h2>
           <button
             className="details-close-btn"
             onClick={onClose}
@@ -183,268 +240,341 @@ export default function DetailsModal({
             )
           )}
 
-          {/* ============ SET TYPE ============ */}
-          <div className="details-field-group">
-            <label className="details-label">সেট</label>
-            <div className="dropdown-wrap">
-              <button
-                type="button"
-                className="dropdown-trigger"
-                onClick={() => {
-                  setOpenSetDropdown((s) => !s);
-                  setOpenNameDropdown(false);
-                  setOpenCodeDropdown(false);
-                }}
-              >
-                <span className="dropdown-value">{setType}</span>
-                <span className="dropdown-caret">⌄</span>
-              </button>
-
-              {openSetDropdown && (
-                <div className="dropdown-menu">
-                  {SET_TYPES.map((s) => (
-                    <button
-                      key={s}
-                      className={`dropdown-item ${
-                        s === setType ? "active" : ""
-                      }`}
-                      onClick={() => {
-                        setSetType(s);
-                        setOpenSetDropdown(false);
-                      }}
-                    >
-                      {s === setType && <span className="check-icon">✓</span>}
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Info Box */}
+          <div className="mix-info-box">
+            🎨 <strong>কালার মিক্স</strong> — একটি কালার তৈরি করতে
+            একাধিক রঙের মিশ্রণ লাগে। সর্বোচ্চ {MAX_ROWS}টি রঙ যোগ করুন।
           </div>
 
-          {/* ============ COLOR NAME ============ */}
-          <div className="details-field-group">
-            <label className="details-label">
-              কালার নাম <span className="required-mark">*</span>
-            </label>
-            <div className="dropdown-wrap">
-              <button
-                type="button"
-                className="dropdown-trigger"
-                onClick={() => {
-                  setOpenNameDropdown((s) => !s);
-                  setOpenSetDropdown(false);
-                  setOpenCodeDropdown(false);
-                }}
-              >
-                <span className="color-name-row">
-                  <span
-                    className="color-dot"
-                    style={{ background: currentHex }}
-                  />
-                  <span className="dropdown-value">
-                    {showCustomName ? "অন্যান্য" : colorName}
-                  </span>
-                </span>
-                <span className="dropdown-caret">⌄</span>
-              </button>
+          {/* ============ ROWS ============ */}
+          <div className="mix-rows-container">
+            {rows.map((row, index) => {
+              const availableCodes = getCodesByColorName(row.colorName);
+              const currentHex = row.showCustomName
+                ? "#CCCCCC"
+                : getHexByColorName(row.colorName);
+              const isNameOpen =
+                openDropdown.rowId === row.id &&
+                openDropdown.type === "name";
+              const isCodeOpen =
+                openDropdown.rowId === row.id &&
+                openDropdown.type === "code";
+              const isSetOpen =
+                openDropdown.rowId === row.id &&
+                openDropdown.type === "set";
 
-              {openNameDropdown && (
-                <div className="dropdown-menu">
-                  {COLOR_MASTER.map((c) => (
-                    <button
-                      key={c.name}
-                      className={`dropdown-item ${
-                        c.name === colorName && !showCustomName
-                          ? "active"
-                          : ""
-                      }`}
-                      onClick={() => handleColorNameSelect(c.name)}
-                    >
-                      <span className="item-color-row">
-                        <span
-                          className="color-dot"
-                          style={{ background: c.hex }}
-                        />
-                        {c.name}
-                      </span>
-                      {c.name === colorName && !showCustomName && (
-                        <span className="check-icon">✓</span>
-                      )}
-                    </button>
-                  ))}
-                  <button
-                    className={`dropdown-item other-item ${
-                      showCustomName ? "active" : ""
-                    }`}
-                    onClick={() => handleColorNameSelect("__OTHER__")}
-                  >
-                    ✏️ অন্যান্য (নিজে লিখুন)
-                    {showCustomName && <span className="check-icon">✓</span>}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Custom Name Input */}
-            {showCustomName && (
-              <input
-                type="text"
-                className="custom-input"
-                placeholder="কালারের নাম লিখুন..."
-                value={customColorName}
-                onChange={(e) => setCustomColorName(e.target.value)}
-                style={{ marginTop: "8px" }}
-              />
-            )}
-          </div>
-
-          {/* ============ COLOR CODE ============ */}
-          <div className="details-field-group">
-            <label className="details-label">
-              কোড <span className="required-mark">*</span>
-            </label>
-            <div className="dropdown-wrap">
-              <button
-                type="button"
-                className="dropdown-trigger"
-                onClick={() => {
-                  setOpenCodeDropdown((s) => !s);
-                  setOpenSetDropdown(false);
-                  setOpenNameDropdown(false);
-                }}
-                disabled={showCustomName && !customColorName}
-              >
-                <span className="dropdown-value">
-                  {showCustomCode ? "অন্যান্য" : colorCode || "নির্বাচন করুন"}
-                </span>
-                <span className="dropdown-caret">⌄</span>
-              </button>
-
-              {openCodeDropdown && !showCustomName && (
-                <div className="dropdown-menu">
-                  {availableCodes.length > 0 ? (
-                    availableCodes.map((code) => (
+              return (
+                <div key={row.id} className="mix-row-card">
+                  {/* Row Header */}
+                  <div className="mix-row-header">
+                    <span className="mix-row-num">
+                      কালার {index + 1}
+                    </span>
+                    {rows.length > 1 && (
                       <button
-                        key={code}
-                        className={`dropdown-item ${
-                          code === colorCode && !showCustomCode
-                            ? "active"
-                            : ""
-                        }`}
-                        onClick={() => handleColorCodeSelect(code)}
+                        type="button"
+                        className="mix-row-remove"
+                        onClick={() => removeRow(row.id)}
+                        aria-label="মুছে ফেলুন"
                       >
-                        {code}
-                        {code === colorCode && !showCustomCode && (
-                          <span className="check-icon">✓</span>
-                        )}
+                        ✕
                       </button>
-                    ))
-                  ) : (
-                    <div className="dropdown-empty">
-                      এই কালারের জন্য কোনো কোড নেই
+                    )}
+                  </div>
+
+                  {/* Row Body */}
+                  <div className="mix-row-body">
+                    {/* Set Type */}
+                    <div className="mix-field">
+                      <label className="mix-label">সেট</label>
+                      <div className="dropdown-wrap">
+                        <button
+                          type="button"
+                          className="dropdown-trigger compact"
+                          onClick={() =>
+                            setOpenDropdown({
+                              rowId: row.id,
+                              type: isSetOpen ? null : "set",
+                            })
+                          }
+                        >
+                          <span className="dropdown-value">
+                            {row.setType}
+                          </span>
+                          <span className="dropdown-caret">⌄</span>
+                        </button>
+                        {isSetOpen && (
+                          <div className="dropdown-menu">
+                            {SET_TYPES.map((s) => (
+                              <button
+                                key={s}
+                                className={`dropdown-item ${
+                                  s === row.setType ? "active" : ""
+                                }`}
+                                onClick={() => {
+                                  updateRow(row.id, { setType: s });
+                                  setOpenDropdown({
+                                    rowId: null,
+                                    type: null,
+                                  });
+                                }}
+                              >
+                                {s}
+                                {s === row.setType && (
+                                  <span className="check-icon">✓</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <button
-                    className={`dropdown-item other-item ${
-                      showCustomCode ? "active" : ""
-                    }`}
-                    onClick={() => handleColorCodeSelect("__OTHER__")}
-                  >
-                    ✏️ অন্যান্য (নিজে লিখুন)
-                    {showCustomCode && <span className="check-icon">✓</span>}
-                  </button>
+
+                    {/* Color Name */}
+                    <div className="mix-field">
+                      <label className="mix-label">
+                        কালার নাম <span className="required-mark">*</span>
+                      </label>
+                      <div className="dropdown-wrap">
+                        <button
+                          type="button"
+                          className="dropdown-trigger compact"
+                          onClick={() =>
+                            setOpenDropdown({
+                              rowId: row.id,
+                              type: isNameOpen ? null : "name",
+                            })
+                          }
+                        >
+                          <span className="color-name-row">
+                            <span
+                              className="color-dot small"
+                              style={{ background: currentHex }}
+                            />
+                            <span className="dropdown-value">
+                              {row.showCustomName
+                                ? row.customColorName || "অন্যান্য"
+                                : row.colorName}
+                            </span>
+                          </span>
+                          <span className="dropdown-caret">⌄</span>
+                        </button>
+                        {isNameOpen && (
+                          <div className="dropdown-menu">
+                            {COLOR_MASTER.map((c) => (
+                              <button
+                                key={c.name}
+                                className={`dropdown-item ${
+                                  c.name === row.colorName &&
+                                  !row.showCustomName
+                                    ? "active"
+                                    : ""
+                                }`}
+                                onClick={() =>
+                                  handleColorNameSelect(row.id, c.name)
+                                }
+                              >
+                                <span className="item-color-row">
+                                  <span
+                                    className="color-dot small"
+                                    style={{ background: c.hex }}
+                                  />
+                                  {c.name}
+                                </span>
+                                {c.name === row.colorName &&
+                                  !row.showCustomName && (
+                                    <span className="check-icon">✓</span>
+                                  )}
+                              </button>
+                            ))}
+                            <button
+                              className={`dropdown-item other-item ${
+                                row.showCustomName ? "active" : ""
+                              }`}
+                              onClick={() =>
+                                handleColorNameSelect(row.id, "__OTHER__")
+                              }
+                            >
+                              ✏️ অন্যান্য
+                              {row.showCustomName && (
+                                <span className="check-icon">✓</span>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {row.showCustomName && (
+                        <input
+                          type="text"
+                          className="custom-input small"
+                          placeholder="কালারের নাম..."
+                          value={row.customColorName}
+                          onChange={(e) =>
+                            updateRow(row.id, {
+                              customColorName: e.target.value,
+                            })
+                          }
+                        />
+                      )}
+                    </div>
+
+                    {/* Color Code */}
+                    <div className="mix-field">
+                      <label className="mix-label">
+                        কোড <span className="required-mark">*</span>
+                      </label>
+                      <div className="dropdown-wrap">
+                        <button
+                          type="button"
+                          className="dropdown-trigger compact"
+                          onClick={() =>
+                            setOpenDropdown({
+                              rowId: row.id,
+                              type: isCodeOpen ? null : "code",
+                            })
+                          }
+                          disabled={row.showCustomName}
+                        >
+                          <span className="dropdown-value">
+                            {row.showCustomCode
+                              ? row.customColorCode || "অন্যান্য"
+                              : row.colorCode || "নির্বাচন"}
+                          </span>
+                          <span className="dropdown-caret">⌄</span>
+                        </button>
+                        {isCodeOpen && !row.showCustomName && (
+                          <div className="dropdown-menu">
+                            {availableCodes.length > 0 ? (
+                              availableCodes.map((code) => (
+                                <button
+                                  key={code}
+                                  className={`dropdown-item ${
+                                    code === row.colorCode &&
+                                    !row.showCustomCode
+                                      ? "active"
+                                      : ""
+                                  }`}
+                                  onClick={() =>
+                                    handleColorCodeSelect(row.id, code)
+                                  }
+                                >
+                                  {code}
+                                  {code === row.colorCode &&
+                                    !row.showCustomCode && (
+                                      <span className="check-icon">✓</span>
+                                    )}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="dropdown-empty">
+                                কোনো কোড নেই
+                              </div>
+                            )}
+                            <button
+                              className={`dropdown-item other-item ${
+                                row.showCustomCode ? "active" : ""
+                              }`}
+                              onClick={() =>
+                                handleColorCodeSelect(row.id, "__OTHER__")
+                              }
+                            >
+                              ✏️ অন্যান্য
+                              {row.showCustomCode && (
+                                <span className="check-icon">✓</span>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {(row.showCustomCode || row.showCustomName) && (
+                        <input
+                          type="text"
+                          className="custom-input small"
+                          placeholder="কোড..."
+                          value={
+                            row.showCustomCode
+                              ? row.customColorCode
+                              : row.colorCode
+                          }
+                          onChange={(e) =>
+                            updateRow(
+                              row.id,
+                              row.showCustomCode
+                                ? { customColorCode: e.target.value }
+                                : { colorCode: e.target.value }
+                            )
+                          }
+                        />
+                      )}
+                    </div>
+
+                    {/* Weight */}
+                    <div className="mix-field">
+                      <label className="mix-label">
+                        পরিমাণ (gm) <span className="required-mark">*</span>
+                      </label>
+                      <div className="weight-input-wrap compact">
+                        <button
+                          type="button"
+                          className="weight-btn small"
+                          onClick={() =>
+                            adjustWeight(row.id, -WEIGHT_STEP)
+                          }
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          className="weight-input small"
+                          value={row.weight}
+                          min={WEIGHT_MIN}
+                          max={WEIGHT_MAX}
+                          step={WEIGHT_STEP}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) {
+                              if (val < WEIGHT_MIN)
+                                updateRow(row.id, { weight: WEIGHT_MIN });
+                              else if (val > WEIGHT_MAX)
+                                updateRow(row.id, { weight: WEIGHT_MAX });
+                              else updateRow(row.id, { weight: val });
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="weight-btn small"
+                          onClick={() =>
+                            adjustWeight(row.id, WEIGHT_STEP)
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Custom Code Input */}
-            {(showCustomCode || showCustomName) && (
-              <input
-                type="text"
-                className="custom-input"
-                placeholder="কোড লিখুন..."
-                value={showCustomCode ? customColorCode : colorCode}
-                onChange={(e) =>
-                  showCustomCode
-                    ? setCustomColorCode(e.target.value)
-                    : setColorCode(e.target.value)
-                }
-                style={{ marginTop: "8px" }}
-              />
-            )}
+              );
+            })}
           </div>
 
-          {/* ============ WEIGHT ============ */}
-          <div className="details-field-group">
-            <label className="details-label">
-              পরিমাণ (gm) <span className="required-mark">*</span>
-            </label>
-            <div className="weight-input-wrap">
-              <button
-                type="button"
-                className="weight-btn"
-                onClick={() => adjustWeight(-WEIGHT_STEP)}
-              >
-                −
-              </button>
-              <input
-                type="number"
-                className="weight-input"
-                value={weight}
-                min={WEIGHT_MIN}
-                max={WEIGHT_MAX}
-                step={WEIGHT_STEP}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val)) {
-                    if (val < WEIGHT_MIN) setWeight(WEIGHT_MIN);
-                    else if (val > WEIGHT_MAX) setWeight(WEIGHT_MAX);
-                    else setWeight(val);
-                  }
-                }}
-              />
-              <span className="weight-unit">gm</span>
-              <button
-                type="button"
-                className="weight-btn"
-                onClick={() => adjustWeight(WEIGHT_STEP)}
-              >
-                +
-              </button>
-            </div>
-            <p className="weight-hint">
-              {WEIGHT_MIN} থেকে {WEIGHT_MAX} gm এর মধ্যে
-            </p>
-          </div>
+          {/* Add Row Button */}
+          {rows.length < MAX_ROWS && (
+            <button
+              type="button"
+              className="add-row-btn"
+              onClick={addRow}
+            >
+              ➕ আরেকটি কালার যোগ করুন ({rows.length}/{MAX_ROWS})
+            </button>
+          )}
 
-          {/* ============ PREVIEW ============ */}
-          <div className="details-preview-box">
-            <p className="preview-title">📋 সারসংক্ষেপ</p>
-            <div className="preview-row">
-              <span className="preview-key">কালার:</span>
-              <span className="preview-value">
-                {showCustomName
-                  ? customColorName || "—"
-                  : colorName}
-              </span>
-            </div>
-            <div className="preview-row">
-              <span className="preview-key">কোড:</span>
-              <span className="preview-value">
-                {showCustomCode ? customColorCode || "—" : colorCode || "—"}
-              </span>
-            </div>
-            <div className="preview-row">
-              <span className="preview-key">সেট:</span>
-              <span className="preview-value">{setType}</span>
-            </div>
-            <div className="preview-row">
-              <span className="preview-key">পরিমাণ:</span>
-              <span className="preview-value">
-                {Number(weight).toFixed(2)} gm
-              </span>
-            </div>
+          {/* Total Weight */}
+          <div className="total-weight-box">
+            <span className="total-weight-label">📊 মোট পরিমাণ</span>
+            <span className="total-weight-value">
+              {totalWeight.toFixed(2)} gm
+            </span>
           </div>
 
           <div className="watermark-note">

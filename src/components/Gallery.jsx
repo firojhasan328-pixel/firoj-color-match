@@ -13,12 +13,8 @@ export default function Gallery({ refreshKey = 0 }) {
         const mapped = data.map((row) => ({
           id: row.id,
           url: row.image_url,
-          caption: row.details?.slice(0, 30) || row.owner_name,
           hex: row.color_hex,
-          owner: row.owner_name,
           ownerCode: row.user_code,
-          color: { r: row.color_r, g: row.color_g, b: row.color_b },
-          details: row.details,
         }));
         setImages(mapped);
       } catch (err) {
@@ -47,7 +43,7 @@ export default function Gallery({ refreshKey = 0 }) {
       ) : (
         images.map((img) => (
           <div key={img.id} className="gallery-item">
-            <img src={img.url} alt={img.caption} loading="lazy" />
+            <img src={img.url} alt="Color" loading="lazy" />
 
             <div className="gallery-color-bar">
               <span
@@ -56,13 +52,11 @@ export default function Gallery({ refreshKey = 0 }) {
               />
               <span className="gallery-color-hex">{img.hex}</span>
               {img.ownerCode && (
-                <span className="gallery-owner-code">{img.ownerCode}</span>
+                <span className="gallery-owner-code">
+                  {img.ownerCode}
+                </span>
               )}
             </div>
-
-            {img.caption && (
-              <div className="caption">{img.caption}</div>
-            )}
           </div>
         ))
       )}

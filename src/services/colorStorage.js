@@ -38,7 +38,11 @@ export async function addWatermarkToImage(file, userCode, colorHex) {
           ctx.fill();
 
           ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-          ctx.fillText(idText, idBoxX + idBoxW - padding, idBoxY + idBoxH / 2 + 1);
+          ctx.fillText(
+            idText,
+            idBoxX + idBoxW - padding,
+            idBoxY + idBoxH / 2 + 1
+          );
 
           // Color Code (বাম কোণায়)
           if (colorHex) {
@@ -51,7 +55,14 @@ export async function addWatermarkToImage(file, userCode, colorHex) {
             const colorBoxY = canvas.height - colorBoxH - 8;
 
             ctx.fillStyle = "rgba(15, 23, 42, 0.5)";
-            roundRect(ctx, colorBoxX, colorBoxY, colorBoxW, colorBoxH, radius);
+            roundRect(
+              ctx,
+              colorBoxX,
+              colorBoxY,
+              colorBoxW,
+              colorBoxH,
+              radius
+            );
             ctx.fill();
 
             ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
@@ -130,7 +141,9 @@ export async function uploadColorImage(file, userId) {
 export async function checkDuplicateColor(colorHex) {
   const { data, error } = await supabase
     .from("colors")
-    .select("id, user_id, owner_name, user_code, image_url, color_hex, details, created_at")
+    .select(
+      "id, user_id, owner_name, user_code, image_url, color_hex, details, created_at"
+    )
     .eq("color_hex", colorHex.toUpperCase())
     .limit(1);
 
@@ -157,7 +170,7 @@ export async function fetchColorById(colorId) {
 }
 
 // ========================================
-// Database-এ color info সেভ
+// Database-এ color info সেভ (সম্পূর্ণ নতুন)
 // ========================================
 export async function saveColorRecord({
   userId,
@@ -166,6 +179,10 @@ export async function saveColorRecord({
   imageUrl,
   color,
   details,
+  colorName,
+  colorCode,
+  setType,
+  weight,
 }) {
   const { data, error } = await supabase
     .from("colors")
@@ -179,6 +196,10 @@ export async function saveColorRecord({
       color_g: color.g,
       color_b: color.b,
       details: details || "",
+      color_name: colorName || "",
+      color_code: colorCode || "",
+      set_type: setType || "1 kg",
+      weight_gm: weight || 20,
     })
     .select()
     .single();

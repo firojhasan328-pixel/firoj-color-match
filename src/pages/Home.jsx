@@ -99,12 +99,14 @@ export default function Home() {
     setInvalidInfo(info);
   }
 
+  // ========================================
+  // Save Details (Multi-Color Mix)
+  // ========================================
   async function handleSaveDetails({
     color,
-    colorName,
-    colorCode,
-    setType,
-    weight,
+    colorMix,
+    details,
+    totalWeight,
   }) {
     if (!userId || !uploadFile) return;
     setSaving(true);
@@ -131,23 +133,16 @@ export default function Home() {
       // ৩। Storage-এ আপলোড
       const imageUrl = await uploadColorImage(watermarkedFile, userId);
 
-      // ৪। সুন্দর Details Text তৈরি (Preview-র জন্য)
-      const detailsText = `${colorName} · ${colorCode} · ${setType} · ${Number(
-        weight
-      ).toFixed(2)} gm`;
-
-      // ৫। Database-এ সেভ
+      // ৪। Database-এ সেভ
       await saveColorRecord({
         userId,
         ownerName: userName,
         userCode: userCode || "CM000000",
         imageUrl,
         color,
-        details: detailsText,
-        colorName,
-        colorCode,
-        setType,
-        weight,
+        details,
+        colorMix,
+        totalWeight,
       });
 
       setUploadFile(null);

@@ -99,11 +99,18 @@ export default function Home() {
     setInvalidInfo(info);
   }
 
-  async function handleSaveDetails({ color, details }) {
+  async function handleSaveDetails({
+    color,
+    colorName,
+    colorCode,
+    setType,
+    weight,
+  }) {
     if (!userId || !uploadFile) return;
     setSaving(true);
 
     try {
+      // ১। Duplicate Check (Exact HEX Match)
       const duplicate = await checkDuplicateColor(color.hex);
 
       if (duplicate) {
@@ -114,21 +121,33 @@ export default function Home() {
         return;
       }
 
+      // ২। Watermark সহ ছবি তৈরি
       const watermarkedFile = await addWatermarkToImage(
         uploadFile,
         userCode || "CM000000",
         color.hex
       );
 
+      // ৩। Storage-এ আপলোড
       const imageUrl = await uploadColorImage(watermarkedFile, userId);
 
+      // ৪। সুন্দর Details Text তৈরি (Preview-র জন্য)
+      const detailsText = `${colorName} · ${colorCode} · ${setType} · ${Number(
+        weight
+      ).toFixed(2)} gm`;
+
+      // ৫। Database-এ সেভ
       await saveColorRecord({
         userId,
         ownerName: userName,
         userCode: userCode || "CM000000",
         imageUrl,
         color,
-        details,
+        details: detailsText,
+        colorName,
+        colorCode,
+        setType,
+        weight,
       });
 
       setUploadFile(null);
@@ -186,7 +205,6 @@ export default function Home() {
 
   function handleInvalidTryAgain() {
     setInvalidInfo(null);
-    // Upload Section-এ Scroll করি
     setTimeout(() => {
       if (uploadSectionRef.current) {
         uploadSectionRef.current.scrollIntoView({

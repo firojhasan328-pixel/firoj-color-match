@@ -170,7 +170,7 @@ export async function fetchColorById(colorId) {
 }
 
 // ========================================
-// Database-এ color info সেভ (সম্পূর্ণ নতুন)
+// Database-এ color info সেভ (Multi-Mix)
 // ========================================
 export async function saveColorRecord({
   userId,
@@ -179,11 +179,12 @@ export async function saveColorRecord({
   imageUrl,
   color,
   details,
-  colorName,
-  colorCode,
-  setType,
-  weight,
+  colorMix,
+  totalWeight,
 }) {
+  // প্রথম Row থেকে color_name, color_code, set_type নিই (Compatibility-র জন্য)
+  const first = colorMix && colorMix[0] ? colorMix[0] : {};
+
   const { data, error } = await supabase
     .from("colors")
     .insert({
@@ -196,10 +197,11 @@ export async function saveColorRecord({
       color_g: color.g,
       color_b: color.b,
       details: details || "",
-      color_name: colorName || "",
-      color_code: colorCode || "",
-      set_type: setType || "1 kg",
-      weight_gm: weight || 20,
+      color_name: first.name || "",
+      color_code: first.code || "",
+      set_type: first.setType || "1 kg",
+      weight_gm: totalWeight || first.weight || 20,
+      color_mix: colorMix || [],
     })
     .select()
     .single();

@@ -2375,3 +2375,118 @@
   font-family: monospace;
   letter-spacing: 0.5px;
 }
+/* ========================================
+   WEIGHT ADVANCED CONTROL
+   ======================================== */
+.weight-advanced-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 8px;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.weight-advanced-wrap:focus-within {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
+}
+
+/* গ্রাম / মিলিগ্রাম Control Group */
+.weight-ctrl-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 4px 2px;
+}
+
+.weight-ctrl-btn {
+  width: 100%;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.15s;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.weight-ctrl-btn.gram {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}
+
+.weight-ctrl-btn.mg {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+}
+
+.weight-ctrl-btn:active {
+  transform: scale(0.94);
+}
+
+.weight-ctrl-btn:hover {
+  filter: brightness(1.08);
+}
+
+.weight-ctrl-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* Manual Input (মাঝে) */
+.weight-manual-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  padding: 4px 8px;
+  border: 1px solid #bae6fd;
+}
+
+.weight-manual-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0284c7;
+  text-align: center;
+  outline: none;
+  font-family: "Hind Siliguri", monospace;
+  min-width: 0;
+  letter-spacing: 0.5px;
+}
+
+.weight-manual-input::-webkit-outer-spin-button,
+.weight-manual-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.weight-manual-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.weight-manual-unit {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  letter-spacing: 0.3px;
+}

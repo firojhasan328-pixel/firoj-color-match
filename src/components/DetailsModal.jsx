@@ -7,7 +7,6 @@ import {
   getHexByColorName,
   WEIGHT_MIN,
   WEIGHT_MAX,
-  WEIGHT_STEP,
 } from "../data/colorMaster";
 
 const MAX_ROWS = 7;
@@ -44,7 +43,7 @@ export default function DetailsModal({
   // কোন Row-এর ড্রপডাউন খোলা আছে
   const [openDropdown, setOpenDropdown] = useState({
     rowId: null,
-    type: null, // "name" | "code" | "set"
+    type: null,
   });
 
   useEffect(() => {
@@ -61,14 +60,12 @@ export default function DetailsModal({
     if (imagePreview) analyze();
   }, [imagePreview]);
 
-  // Row-এ পরিবর্তন
   function updateRow(rowId, updates) {
     setRows((prev) =>
       prev.map((r) => (r.id === rowId ? { ...r, ...updates } : r))
     );
   }
 
-  // Row যোগ
   function addRow() {
     if (rows.length >= MAX_ROWS) {
       alert(`সর্বোচ্চ ${MAX_ROWS}টি কালার যোগ করা যাবে।`);
@@ -77,7 +74,6 @@ export default function DetailsModal({
     setRows((prev) => [...prev, makeEmptyRow()]);
   }
 
-  // Row মুছে ফেলা
   function removeRow(rowId) {
     if (rows.length === 1) {
       alert("কমপক্ষে ১টি কালার থাকতে হবে।");
@@ -86,7 +82,6 @@ export default function DetailsModal({
     setRows((prev) => prev.filter((r) => r.id !== rowId));
   }
 
-  // Color Name সিলেক্ট
   function handleColorNameSelect(rowId, name) {
     if (name === "__OTHER__") {
       updateRow(rowId, {
@@ -107,7 +102,6 @@ export default function DetailsModal({
     setOpenDropdown({ rowId: null, type: null });
   }
 
-  // Color Code সিলেক্ট
   function handleColorCodeSelect(rowId, code) {
     if (code === "__OTHER__") {
       updateRow(rowId, { showCustomCode: true, customColorCode: "" });
@@ -117,14 +111,46 @@ export default function DetailsModal({
     setOpenDropdown({ rowId: null, type: null });
   }
 
-  // Weight Adjust
-  function adjustWeight(rowId, delta) {
+  // ========================================
+  // Weight Control Functions
+  // ========================================
+
+  // গ্রাম Adjust (±1 gm)
+  function adjustGram(rowId, delta) {
     const row = rows.find((r) => r.id === rowId);
     if (!row) return;
-    let newW = row.weight + delta;
+    let newW = parseFloat(row.weight) + delta;
     if (newW < WEIGHT_MIN) newW = WEIGHT_MIN;
     if (newW > WEIGHT_MAX) newW = WEIGHT_MAX;
+    newW = parseFloat(newW.toFixed(2));
     updateRow(rowId, { weight: newW });
+  }
+
+  // মিলিগ্রাম Adjust (±0.01 gm = 10 mg)
+  function adjustMilligram(rowId, delta) {
+    const row = rows.find((r) => r.id === rowId);
+    if (!row) return;
+    let newW = parseFloat(row.weight) + delta;
+    if (newW < WEIGHT_MIN) newW = WEIGHT_MIN;
+    if (newW > WEIGHT_MAX) newW = WEIGHT_MAX;
+    newW = parseFloat(newW.toFixed(2));
+    updateRow(rowId, { weight: newW });
+  }
+
+  // Manual Weight Input
+  function handleWeightInput(rowId, value) {
+    const val = parseFloat(value);
+    if (isNaN(val)) {
+      updateRow(rowId, { weight: 0 });
+      return;
+    }
+    if (val < WEIGHT_MIN) {
+      updateRow(rowId, { weight: WEIGHT_MIN });
+    } else if (val > WEIGHT_MAX) {
+      updateRow(rowId, { weight: WEIGHT_MAX });
+    } else {
+      updateRow(rowId, { weight: parseFloat(val.toFixed(2)) });
+    }
   }
 
   // Total Weight
@@ -133,11 +159,9 @@ export default function DetailsModal({
     return sum + w;
   }, 0);
 
-  // Save Handler
   function handleSave() {
     setError("");
 
-    // Validation
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       const finalName = r.showCustomName
@@ -172,7 +196,6 @@ export default function DetailsModal({
       return;
     }
 
-    // Final Mix Data তৈরি
     const mixData = rows.map((r) => ({
       name: r.showCustomName ? r.customColorName.trim() : r.colorName,
       code: r.showCustomCode ? r.customColorCode.trim() : r.colorCode,
@@ -180,9 +203,11 @@ export default function DetailsModal({
       weight: parseFloat(r.weight) || 0,
     }));
 
-    // সুন্দর Details Text (Gallery-র জন্য)
     const detailsText = mixData
-      .map((m) => `${m.name} (${m.code}) · ${m.weight.toFixed(2)}gm · ${m.setType}`)
+      .map(
+        (m) =>
+          `${m.name} (${m.code}) · ${m.weight.toFixed(2)}gm · ${m.setType}`
+      )
       .join(" + ");
 
     onSave({
@@ -196,11 +221,8 @@ export default function DetailsModal({
   return (
     <div className="details-fullscreen-overlay">
       <div className="details-fullscreen-card">
-        {/* Header */}
         <div className="details-header">
-          <h2 className="details-header-title">
-            📝 ছবির বিস্তারিত দিন
-          </h2>
+          <h2 className="details-header-title">📝 ছবির বিস্তারিত দিন</h2>
           <button
             className="details-close-btn"
             onClick={onClose}
@@ -211,12 +233,10 @@ export default function DetailsModal({
         </div>
 
         <div className="details-scroll-body">
-          {/* Image Preview */}
           <div className="details-image-block">
             <img src={imagePreview} alt="Preview" />
           </div>
 
-          {/* Auto Detected Color */}
           {analyzing ? (
             <div className="details-loading">
               <span className="pulse" />
@@ -240,13 +260,11 @@ export default function DetailsModal({
             )
           )}
 
-          {/* Info Box */}
           <div className="mix-info-box">
-            🎨 <strong>কালার মিক্স</strong> — একটি কালার তৈরি করতে
-            একাধিক রঙের মিশ্রণ লাগে। সর্বোচ্চ {MAX_ROWS}টি রঙ যোগ করুন।
+            🎨 <strong>কালার মিক্স</strong> — একটি কালার তৈরি করতে একাধিক
+            রঙের মিশ্রণ লাগে। সর্বোচ্চ {MAX_ROWS}টি রঙ যোগ করুন।
           </div>
 
-          {/* ============ ROWS ============ */}
           <div className="mix-rows-container">
             {rows.map((row, index) => {
               const availableCodes = getCodesByColorName(row.colorName);
@@ -265,11 +283,8 @@ export default function DetailsModal({
 
               return (
                 <div key={row.id} className="mix-row-card">
-                  {/* Row Header */}
                   <div className="mix-row-header">
-                    <span className="mix-row-num">
-                      কালার {index + 1}
-                    </span>
+                    <span className="mix-row-num">কালার {index + 1}</span>
                     {rows.length > 1 && (
                       <button
                         type="button"
@@ -282,7 +297,6 @@ export default function DetailsModal({
                     )}
                   </div>
 
-                  {/* Row Body */}
                   <div className="mix-row-body">
                     {/* Set Type */}
                     <div className="mix-field">
@@ -508,48 +522,70 @@ export default function DetailsModal({
                       )}
                     </div>
 
-                    {/* Weight */}
+                    {/* ============ WEIGHT (NEW) ============ */}
                     <div className="mix-field">
                       <label className="mix-label">
                         পরিমাণ (gm) <span className="required-mark">*</span>
                       </label>
-                      <div className="weight-input-wrap compact">
-                        <button
-                          type="button"
-                          className="weight-btn small"
-                          onClick={() =>
-                            adjustWeight(row.id, -WEIGHT_STEP)
-                          }
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          className="weight-input small"
-                          value={row.weight}
-                          min={WEIGHT_MIN}
-                          max={WEIGHT_MAX}
-                          step={WEIGHT_STEP}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!isNaN(val)) {
-                              if (val < WEIGHT_MIN)
-                                updateRow(row.id, { weight: WEIGHT_MIN });
-                              else if (val > WEIGHT_MAX)
-                                updateRow(row.id, { weight: WEIGHT_MAX });
-                              else updateRow(row.id, { weight: val });
+
+                      <div className="weight-advanced-wrap">
+                        {/* গ্রাম Control (বাম) */}
+                        <div className="weight-ctrl-group">
+                          <button
+                            type="button"
+                            className="weight-ctrl-btn gram"
+                            onClick={() => adjustGram(row.id, -1)}
+                            title="১ গ্রাম কম"
+                          >
+                            −
+                          </button>
+                          <span className="weight-ctrl-label">গ্রাম</span>
+                          <button
+                            type="button"
+                            className="weight-ctrl-btn gram"
+                            onClick={() => adjustGram(row.id, 1)}
+                            title="১ গ্রাম বাড়"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Manual Input (মাঝে) */}
+                        <div className="weight-manual-wrap">
+                          <input
+                            type="number"
+                            className="weight-manual-input"
+                            value={row.weight}
+                            min={WEIGHT_MIN}
+                            max={WEIGHT_MAX}
+                            step="0.01"
+                            onChange={(e) =>
+                              handleWeightInput(row.id, e.target.value)
                             }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="weight-btn small"
-                          onClick={() =>
-                            adjustWeight(row.id, WEIGHT_STEP)
-                          }
-                        >
-                          +
-                        </button>
+                          />
+                          <span className="weight-manual-unit">gm</span>
+                        </div>
+
+                        {/* মিলিগ্রাম Control (ডান) */}
+                        <div className="weight-ctrl-group">
+                          <button
+                            type="button"
+                            className="weight-ctrl-btn mg"
+                            onClick={() => adjustMilligram(row.id, -0.01)}
+                            title="১০ মি.গ্রা. কম"
+                          >
+                            −
+                          </button>
+                          <span className="weight-ctrl-label">mg</span>
+                          <button
+                            type="button"
+                            className="weight-ctrl-btn mg"
+                            onClick={() => adjustMilligram(row.id, 0.01)}
+                            title="১০ মি.গ্রা. বাড়"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -558,7 +594,6 @@ export default function DetailsModal({
             })}
           </div>
 
-          {/* Add Row Button */}
           {rows.length < MAX_ROWS && (
             <button
               type="button"
@@ -569,7 +604,6 @@ export default function DetailsModal({
             </button>
           )}
 
-          {/* Total Weight */}
           <div className="total-weight-box">
             <span className="total-weight-label">📊 মোট পরিমাণ</span>
             <span className="total-weight-value">
@@ -585,7 +619,6 @@ export default function DetailsModal({
           {error && <div className="error-box">{error}</div>}
         </div>
 
-        {/* Fixed Footer */}
         <div className="details-footer">
           <button
             className="details-footer-btn secondary"

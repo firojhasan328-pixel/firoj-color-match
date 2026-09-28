@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { getMyProfile } from "../services/profileService";
+import { getMyBalance } from "../services/walletService";
 import { signOut } from "../services/authService";
 import "../styles/home.css";
 
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -20,6 +23,9 @@ export default function Profile() {
           return;
         }
         setProfile(data);
+
+        const bal = await getMyBalance();
+        setBalance(bal);
       } catch (err) {
         console.error(err);
       } finally {
@@ -48,7 +54,7 @@ export default function Profile() {
     <div className="home-page">
       <Navbar
         userName={profile?.full_name || "User"}
-        balance={0}
+        balance={balance}
         onMenuClick={() => setMenuOpen(true)}
         onBalanceClick={() => navigate("/home")}
       />
@@ -133,6 +139,14 @@ export default function Profile() {
               </div>
 
               <div className="profile-info-row">
+                <span className="info-icon">💰</span>
+                <div className="info-content">
+                  <p className="info-label">ব্যালেন্স</p>
+                  <p className="info-value">৳{balance}</p>
+                </div>
+              </div>
+
+              <div className="profile-info-row">
                 <span className="info-icon">📅</span>
                 <div className="info-content">
                   <p className="info-label">যোগদানের তারিখ</p>
@@ -150,7 +164,7 @@ export default function Profile() {
         </section>
       )}
 
-      <p className="home-footer">© 2025 Color Match</p>
+      <Footer />
     </div>
   );
 }

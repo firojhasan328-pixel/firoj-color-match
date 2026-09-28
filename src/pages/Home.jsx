@@ -8,6 +8,7 @@ import ResultModal from "../components/ResultModal";
 import DetailsModal from "../components/DetailsModal";
 import DuplicateModal from "../components/DuplicateModal";
 import InvalidImageModal from "../components/InvalidImageModal";
+import Footer from "../components/Footer";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import { getMyProfile } from "../services/profileService";
@@ -99,9 +100,6 @@ export default function Home() {
     setInvalidInfo(info);
   }
 
-  // ========================================
-  // Save Details (Multi-Color Mix)
-  // ========================================
   async function handleSaveDetails({
     color,
     colorMix,
@@ -112,7 +110,6 @@ export default function Home() {
     setSaving(true);
 
     try {
-      // ১। Duplicate Check (Exact HEX Match)
       const duplicate = await checkDuplicateColor(color.hex);
 
       if (duplicate) {
@@ -123,17 +120,14 @@ export default function Home() {
         return;
       }
 
-      // ২। Watermark সহ ছবি তৈরি
       const watermarkedFile = await addWatermarkToImage(
         uploadFile,
         userCode || "CM000000",
         color.hex
       );
 
-      // ৩। Storage-এ আপলোড
       const imageUrl = await uploadColorImage(watermarkedFile, userId);
 
-      // ৪। Database-এ সেভ
       await saveColorRecord({
         userId,
         ownerName: userName,
@@ -300,7 +294,7 @@ export default function Home() {
         <Gallery refreshKey={galleryRefresh} />
       </section>
 
-      <p className="home-footer">© 2025 Color Match</p>
+      <Footer />
 
       <ResultModal
         result={scanResult}

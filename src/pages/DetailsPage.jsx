@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { supabase } from "../lib/supabaseClient";
 import { fetchColorById } from "../services/colorStorage";
-import { unlockColor } from "../services/walletService";
-import { getMyBalance } from "../services/walletService";
+import { unlockColor, getMyBalance } from "../services/walletService";
 import { signOut } from "../services/authService";
 import "../styles/home.css";
 
@@ -56,7 +56,6 @@ export default function DetailsPage() {
     load();
   }, [colorId, navigate]);
 
-  // Countdown Timer
   useEffect(() => {
     if (counting && countNum > 0) {
       const timer = setTimeout(() => {
@@ -153,7 +152,6 @@ export default function DetailsPage() {
           <div className="empty-gallery">{error}</div>
         ) : color ? (
           <div className="details-page-card">
-            {/* Image */}
             <div className="details-page-image-wrap">
               <img
                 src={color.image_url}
@@ -162,7 +160,6 @@ export default function DetailsPage() {
               />
             </div>
 
-            {/* Color Info */}
             <div className="details-page-color-row">
               <div
                 className="details-page-color-chip"
@@ -176,7 +173,6 @@ export default function DetailsPage() {
               </div>
             </div>
 
-            {/* Owner Info */}
             <div className="details-page-owner">
               <span className="details-owner-text">
                 👤 @{color.owner_name} · {color.user_code}
@@ -184,7 +180,6 @@ export default function DetailsPage() {
               </span>
             </div>
 
-            {/* Details Section */}
             {unlocked ? (
               <div className="details-unlocked">
                 <p className="details-unlocked-label">📋 বিস্তারিত</p>
@@ -200,7 +195,9 @@ export default function DetailsPage() {
             ) : (
               <div className="details-locked">
                 <div className="lock-icon">🔒</div>
-                <p className="lock-text">বিস্তারিত দেখতে Unlock করুন</p>
+                <p className="lock-text">
+                  বিস্তারিত দেখতে Unlock করুন
+                </p>
 
                 {processing ? (
                   <div className="unlock-status">
@@ -228,7 +225,7 @@ export default function DetailsPage() {
         ) : null}
       </section>
 
-      <p className="home-footer">© 2025 Color Match</p>
+      <Footer />
     </div>
   );
 }

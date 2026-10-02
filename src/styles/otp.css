@@ -194,3 +194,25 @@
     gap: 6px;
   }
 }
+/* ========================================
+   FORGOT PASSWORD LINK
+   ======================================== */
+.forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+  margin-bottom: 4px;
+}
+
+.forgot-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0284c7;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.forgot-link:hover {
+  color: #0369a1;
+  text-decoration: underline;
+}

@@ -56,7 +56,7 @@ export default function Profile() {
         userName={profile?.full_name || "User"}
         balance={balance}
         onMenuClick={() => setMenuOpen(true)}
-        onBalanceClick={() => navigate("/home")}
+        onBalanceClick={() => navigate("/balance")}
       />
 
       {menuOpen && (
@@ -80,8 +80,8 @@ export default function Profile() {
             <a href="/home" onClick={() => setMenuOpen(false)}>
               🎨 কালার ম্যাচিং
             </a>
-            <a href="/home" onClick={() => setMenuOpen(false)}>
-              ⭐ ফেভারিট
+            <a href="/balance" onClick={() => setMenuOpen(false)}>
+              💰 ব্যালেন্স
             </a>
             <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল
@@ -131,10 +131,38 @@ export default function Profile() {
               </div>
 
               <div className="profile-info-row">
-                <span className="info-icon">🔑</span>
+                <span className="info-icon">📱</span>
                 <div className="info-content">
-                  <p className="info-label">ইউনিক আইডি</p>
-                  <p className="info-value">{profile?.user_code || "—"}</p>
+                  <p className="info-label">মোবাইল নাম্বার</p>
+                  <p className="info-value">{profile?.mobile || "—"}</p>
+                </div>
+              </div>
+
+              <div className="profile-info-row">
+                <span className="info-icon">🏭</span>
+                <div className="info-content">
+                  <p className="info-label">টেক্সটাইল</p>
+                  <p className="info-value">{profile?.company || "—"}</p>
+                </div>
+              </div>
+
+              <div className="profile-info-row">
+                <span className="info-icon">💼</span>
+                <div className="info-content">
+                  <p className="info-label">পদবী</p>
+                  <p className="info-value">
+                    {profile?.designation || "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="profile-info-row">
+                <span className="info-icon">📍</span>
+                <div className="info-content">
+                  <p className="info-label">বর্তমান ঠিকানা</p>
+                  <p className="info-value">
+                    {profile?.present_address || "—"}
+                  </p>
                 </div>
               </div>
 

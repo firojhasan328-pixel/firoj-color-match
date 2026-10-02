@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import PasswordInput from "../components/PasswordInput";
-import { signUpWithEmail } from "../services/authService";
-import { supabase } from "../lib/supabaseClient";
+import { generateOTP, saveOTP } from "../services/otpService";
+import { sendOtpEmail } from "../services/emailService";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -17,12 +17,10 @@ export default function Signup() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     // ========================================
     // Validation
@@ -35,7 +33,6 @@ export default function Signup() {
       setError("ইমেইল দিন।");
       return;
     }
-    // Mobile: ১১ ডিজিট হতে হবে
     if (!mobile.trim() || mobile.trim().length !== 11) {
       setError("সঠিক মোবাইল নাম্বার দিন (১১ ডিজিট)।");
       return;
@@ -63,72 +60,50 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      const data = await signUpWithEmail(
-        name.trim(),
-        email.trim(),
-        password,
-        {
-          mobile: mobile.trim(),
-          company: company.trim(),
-          designation: designation.trim(),
-          present_address: presentAddress.trim(),
-        }
-      );
+      // ========================================
+      // ১। OTP তৈরি
+      // ========================================
+      const otpCode = generateOTP();
 
-      // Profile Update (Signup-এর পর Profile-এ নতুন Field সেভ)
-      if (data?.user?.id) {
-        await supabase
-          .from("profiles")
-          .update({
-            mobile: mobile.trim(),
-            company: company.trim(),
-            designation: designation.trim(),
-            present_address: presentAddress.trim(),
-          })
-          .eq("id", data.user.id);
-      }
+      // ========================================
+      // ২। User Data তৈরি (পরে Signup-এ ব্যবহার হবে)
+      // ========================================
+      const userData = {
+        name: name.trim(),
+        email: email.trim(),
+        password: password,
+        mobile: mobile.trim(),
+        company: company.trim(),
+        designation: designation.trim(),
+        present_address: presentAddress.trim(),
+      };
 
-      if (data?.session) {
-        await new Promise((r) => setTimeout(r, 800));
-        navigate("/home");
-      } else if (data?.user && !data.session) {
-        setSuccess(
-          "আপনার ইমেইলে একটি Verification Link পাঠানো হয়েছে। ইমেইল যাচাই করে Login করুন।"
-        );
-      } else {
-        navigate("/home");
-      }
+      // ========================================
+      // ৩। OTP Database-এ Save
+      // ========================================
+      await saveOTP(email.trim(), otpCode, userData);
+
+      // ========================================
+      // ৪। EmailJS দিয়ে Email পাঠাই
+      // ========================================
+      await sendOtpEmail(email.trim(), name.trim(), otpCode);
+
+      // ========================================
+      // ৫। Verify Page-এ Navigate
+      // ========================================
+      navigate("/verify", {
+        state: { email: email.trim(), name: name.trim() },
+      });
     } catch (err) {
-      const msg = (err?.message || "").toLowerCase();
       console.error("Signup error:", err);
-
-      if (
-        msg.includes("already") ||
-        msg.includes("registered") ||
-        msg.includes("exists")
-      ) {
-        setError(
-          "এই ইমেইল দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট আছে। লগইন করুন অথবা অন্য ইমেইল ব্যবহার করুন।"
-        );
-      } else if (msg.includes("password")) {
-        setError("পাসওয়ার্ড যথেষ্ট নিরাপদ নয়। কমপক্ষে ৬ অক্ষর দিন।");
-      } else if (msg.includes("email") && msg.includes("invalid")) {
-        setError("ইমেইলের ঠিকানাটি সঠিক নয়।");
-      } else if (msg.includes("rate") || msg.includes("limit")) {
-        setError(
-          "অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।"
-        );
-      } else {
-        setError(
-          "অ্যাকাউন্ট তৈরি করা যায়নি: " + (err?.message || "অজানা সমস্যা")
-        );
-      }
+      setError(
+        "OTP পাঠানো যায়নি: " + (err?.message || "অজানা সমস্যা")
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  // Mobile Input (শুধু ডিজিট)
   function handleMobileChange(e) {
     const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
     setMobile(val);
@@ -143,7 +118,6 @@ export default function Signup() {
       </p>
 
       <form onSubmit={handleSubmit} className="auth-form">
-        {/* Name */}
         <div className="field">
           <label htmlFor="name">
             নাম <span className="required-mark">*</span>
@@ -157,7 +131,6 @@ export default function Signup() {
           />
         </div>
 
-        {/* Email */}
         <div className="field">
           <label htmlFor="email">
             ইমেইল <span className="required-mark">*</span>
@@ -172,7 +145,6 @@ export default function Signup() {
           />
         </div>
 
-        {/* Mobile */}
         <div className="field">
           <label htmlFor="mobile">
             মোবাইল নাম্বার <span className="required-mark">*</span>
@@ -186,12 +158,9 @@ export default function Signup() {
             maxLength={11}
             inputMode="numeric"
           />
-          <p className="field-hint">
-            ১১ ডিজিটের মোবাইল নাম্বার দিন
-          </p>
+          <p className="field-hint">১১ ডিজিটের মোবাইল নাম্বার দিন</p>
         </div>
 
-        {/* Company */}
         <div className="field">
           <label htmlFor="company">
             আপনি কোন টেক্সটাইলে চাকরি করেন{" "}
@@ -206,7 +175,6 @@ export default function Signup() {
           />
         </div>
 
-        {/* Designation */}
         <div className="field">
           <label htmlFor="designation">
             আপনার পদবী <span className="required-mark">*</span>
@@ -220,7 +188,6 @@ export default function Signup() {
           />
         </div>
 
-        {/* Present Address */}
         <div className="field">
           <label htmlFor="presentAddress">
             বর্তমান ঠিকানা <span className="required-mark">*</span>
@@ -234,7 +201,6 @@ export default function Signup() {
           />
         </div>
 
-        {/* Password */}
         <PasswordInput
           id="password"
           label="পাসওয়ার্ড"
@@ -243,7 +209,6 @@ export default function Signup() {
           placeholder="আপনার পাসওয়ার্ড লিখুন"
         />
 
-        {/* Confirm Password */}
         <PasswordInput
           id="confirm"
           label="পাসওয়ার্ড নিশ্চিত করুন"
@@ -253,10 +218,13 @@ export default function Signup() {
         />
 
         {error && <div className="error-box">{error}</div>}
-        {success && <div className="success-box">{success}</div>}
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? <span className="spinner" /> : "অ্যাকাউন্ট তৈরি করুন"}
+          {loading ? (
+            <span className="spinner" />
+          ) : (
+            "অ্যাকাউন্ট তৈরি করুন"
+          )}
         </button>
       </form>
 

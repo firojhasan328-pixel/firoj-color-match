@@ -2490,3 +2490,403 @@
   color: #0284c7;
   letter-spacing: 0.3px;
 }
+/* ========================================
+   BALANCE PAGE
+   ======================================== */
+.balance-main-card {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-radius: 22px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(14, 165, 233, 0.35);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.4s ease;
+}
+
+.balance-main-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  filter: blur(40px);
+}
+
+.balance-main-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.balance-main-amount {
+  font-size: 42px;
+  font-weight: 900;
+  margin-bottom: 18px;
+  font-family: "Hind Siliguri", monospace;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.balance-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.balance-stat {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.balance-stat-label {
+  font-size: 11px;
+  opacity: 0.9;
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.balance-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.withdraw-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  border: none;
+  background: #ffffff;
+  color: #0ea5e9;
+  font-weight: 800;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 1;
+}
+
+.withdraw-btn:active {
+  transform: scale(0.97);
+}
+
+.withdraw-btn.disabled {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: not-allowed;
+  box-shadow: none;
+  font-size: 12.5px;
+}
+
+/* Withdraw History */
+.wd-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wd-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  animation: fadeIn 0.3s ease;
+}
+
+.wd-history-left {
+  flex: 1;
+}
+
+.wd-history-method {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.wd-history-account {
+  font-size: 11.5px;
+  color: #64748b;
+  font-family: monospace;
+  margin-bottom: 2px;
+}
+
+.wd-history-date {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.wd-history-right {
+  text-align: right;
+}
+
+.wd-history-amount {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0284c7;
+  font-family: monospace;
+  margin-bottom: 4px;
+}
+
+.wd-status {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+}
+
+.wd-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.wd-status.approved {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.wd-status.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ========================================
+   WITHDRAW MODAL
+   ======================================== */
+.wd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.wd-card {
+  width: 100%;
+  max-width: 440px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(14, 165, 233, 0.3);
+  animation: fadeUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.wd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-radius: 22px 22px 0 0;
+}
+
+.wd-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.wd-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wd-body {
+  padding: 20px;
+  flex: 1;
+}
+
+.wd-balance-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 1.5px solid #a7f3d0;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+
+.wd-balance-label {
+  font-size: 12.5px;
+  color: #047857;
+  font-weight: 600;
+}
+
+.wd-balance-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: #047857;
+  font-family: monospace;
+}
+
+.wd-field {
+  margin-bottom: 16px;
+}
+
+.wd-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.wd-input {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.wd-input:focus {
+  border-color: #0ea5e9;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
+}
+
+.wd-hint {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 5px;
+}
+
+.wd-method-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.wd-method-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.wd-method-btn:hover {
+  background: #f8fafc;
+}
+
+.wd-method-icon {
+  font-size: 22px;
+}
+
+.wd-method-label {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.wd-note {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+  margin-top: 4px;
+}
+
+.wd-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0 0 22px 22px;
+}
+
+.wd-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 700;
+  font-size: 14.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s;
+  min-height: 48px;
+}
+
+.wd-btn:active {
+  transform: scale(0.97);
+}
+
+.wd-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wd-btn.primary {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+}
+
+.wd-btn.secondary {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  flex: 0 0 100px;
+}

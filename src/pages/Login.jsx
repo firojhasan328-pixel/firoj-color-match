@@ -57,6 +57,12 @@ export default function Login() {
           placeholder="আপনার পাসওয়ার্ড লিখুন"
         />
 
+        <div className="forgot-row">
+          <Link to="/forgot-password" className="forgot-link">
+            🔑 পাসওয়ার্ড ভুলে গেছেন?
+          </Link>
+        </div>
+
         {error && <div className="error-box">{error}</div>}
 
         <button type="submit" className="btn-primary" disabled={loading}>

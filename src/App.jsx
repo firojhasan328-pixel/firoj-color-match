@@ -5,6 +5,7 @@ import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import DetailsPage from "./pages/DetailsPage";
+import Balance from "./pages/Balance";
 import "./styles/global.css";
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/home" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/balance" element={<Balance />} />
         <Route path="/details/:colorId" element={<DetailsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

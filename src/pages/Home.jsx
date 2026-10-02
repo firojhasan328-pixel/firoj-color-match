@@ -210,7 +210,7 @@ export default function Home() {
         userName={userName}
         balance={balance}
         onMenuClick={() => setMenuOpen(true)}
-        onBalanceClick={() => console.log("Balance clicked")}
+        onBalanceClick={() => navigate("/balance")}
       />
 
       {menuOpen && (
@@ -234,8 +234,8 @@ export default function Home() {
             <a href="/home" onClick={() => setMenuOpen(false)}>
               🎨 কালার ম্যাচিং
             </a>
-            <a href="/home" onClick={() => setMenuOpen(false)}>
-              ⭐ ফেভারিট
+            <a href="/balance" onClick={() => setMenuOpen(false)}>
+              💰 ব্যালেন্স
             </a>
             <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল

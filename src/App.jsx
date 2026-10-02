@@ -7,6 +7,8 @@ import Profile from "./pages/Profile";
 import DetailsPage from "./pages/DetailsPage";
 import Balance from "./pages/Balance";
 import VerifyOTP from "./pages/VerifyOTP";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import "./styles/global.css";
 
 export default function App() {
@@ -17,6 +19,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify" element={<VerifyOTP />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/home" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/balance" element={<Balance />} />

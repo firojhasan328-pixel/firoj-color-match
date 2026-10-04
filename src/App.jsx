@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import DetailsPage from "./pages/DetailsPage";
 import Balance from "./pages/Balance";
+import Premium from "./pages/Premium";
 import VerifyOTP from "./pages/VerifyOTP";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/balance" element={<Balance />} />
+        <Route path="/premium" element={<Premium />} />
         <Route path="/details/:colorId" element={<DetailsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

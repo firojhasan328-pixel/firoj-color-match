@@ -237,6 +237,9 @@ export default function Home() {
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
             </a>
+            <a href="/premium" onClick={() => setMenuOpen(false)}>
+              💎 প্রিমিয়াম
+            </a>
             <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল
             </a>

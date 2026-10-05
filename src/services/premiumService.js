@@ -63,6 +63,41 @@ export const PAYMENT_METHODS = [
 ];
 
 // ========================================
+// Screenshot Upload
+// ========================================
+export async function uploadScreenshot(file, userId) {
+  if (!file) throw new Error("Screenshot Select করা হয়নি।");
+
+  // File Size Check (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Screenshot ৫MB এর ছোট হতে হবে।");
+  }
+
+  // File Type Check
+  if (!file.type.startsWith("image/")) {
+    throw new Error("শুধু Image File Upload করা যাবে।");
+  }
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+  const { data, error } = await supabase.storage
+    .from("payment-screenshots")
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data: urlData } = supabase.storage
+    .from("payment-screenshots")
+    .getPublicUrl(data.path);
+
+  return urlData.publicUrl;
+}
+
+// ========================================
 // Premium Request Submit
 // ========================================
 export async function submitPremiumRequest({
@@ -74,6 +109,7 @@ export async function submitPremiumRequest({
   paymentMethod,
   trxId,
   senderNumber,
+  screenshotUrl,
 }) {
   const { data, error } = await supabase
     .from("premium_requests")
@@ -86,6 +122,7 @@ export async function submitPremiumRequest({
       payment_method: paymentMethod,
       trx_id: trxId,
       sender_number: senderNumber,
+      screenshot_url: screenshotUrl,
       status: "pending",
     })
     .select()
@@ -117,7 +154,7 @@ export async function getMyPremiumRequests() {
 }
 
 // ========================================
-// নিজের Premium Status
+// Premium Status
 // ========================================
 export async function getMyPremiumStatus() {
   const { data: authData } = await supabase.auth.getUser();
@@ -134,7 +171,6 @@ export async function getMyPremiumStatus() {
     return { isPremium: false, expiresAt: null };
   }
 
-  // Expire Check
   let isPremium = data.is_premium;
   let expiresAt = data.premium_expires_at;
 
@@ -161,7 +197,7 @@ export function formatPremiumDate(dateStr) {
 }
 
 // ========================================
-// Days Left Calculate
+// Days Left
 // ========================================
 export function getDaysLeft(expiresAt) {
   if (!expiresAt) return 0;

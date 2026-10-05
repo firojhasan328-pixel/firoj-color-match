@@ -11,6 +11,8 @@ import {
   PAYMENT_METHODS,
   submitPremiumRequest,
   uploadScreenshot,
+  getSignedScreenshotUrl,
+  validateScreenshotUrl,
   getMyPremiumRequests,
   getMyPremiumStatus,
   formatPremiumDate,
@@ -40,8 +42,12 @@ export default function Premium() {
   const [selectedMethod, setSelectedMethod] = useState(PAYMENT_METHODS[0]);
   const [trxId, setTrxId] = useState("");
   const [senderNumber, setSenderNumber] = useState("");
+
+  const [uploadMode, setUploadMode] = useState("file"); // "file" | "url"
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -108,6 +114,7 @@ export default function Premium() {
   function handleRemoveScreenshot() {
     setScreenshot(null);
     setScreenshotPreview(null);
+    setScreenshotUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -128,19 +135,36 @@ export default function Premium() {
       setError("সঠিক ১১ ডিজিটের সেন্ডার নাম্বার দিন।");
       return;
     }
-    if (!screenshot) {
-      setError(
-        "⚠️ Payment Screenshot বাধ্যতামূলক। টাকা পাঠানোর পর Screenshot নিয়ে Upload করুন।"
-      );
-      return;
+
+    let finalScreenshotPath = "";
+    if (uploadMode === "file") {
+      if (!screenshot) {
+        setError(
+          "⚠️ Payment Screenshot বাধ্যতামূলক। Gallery থেকে Screenshot Select করুন।"
+        );
+        return;
+      }
+    } else {
+      if (!screenshotUrl.trim()) {
+        setError("⚠️ Image URL দিন।");
+        return;
+      }
+      try {
+        validateScreenshotUrl(screenshotUrl);
+      } catch (err) {
+        setError(err.message);
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      // ১। Screenshot Upload
-      const screenshotUrl = await uploadScreenshot(screenshot, userId);
+      if (uploadMode === "file") {
+        finalScreenshotPath = await uploadScreenshot(screenshot, userId);
+      } else {
+        finalScreenshotPath = screenshotUrl.trim();
+      }
 
-      // ২। Premium Request Submit
       await submitPremiumRequest({
         userId,
         userCode,
@@ -150,7 +174,7 @@ export default function Premium() {
         paymentMethod: selectedMethod.id,
         trxId: trxId.trim(),
         senderNumber: senderNumber.trim(),
-        screenshotUrl,
+        screenshotPath: finalScreenshotPath,
       });
 
       setSuccess(
@@ -251,7 +275,6 @@ export default function Premium() {
           </div>
         ) : (
           <>
-            {/* Active Premium Card */}
             {premiumStatus.isPremium && (
               <div className="premium-active-card">
                 <div className="premium-active-badge">👑 PREMIUM</div>
@@ -268,7 +291,6 @@ export default function Premium() {
               </div>
             )}
 
-            {/* Hero */}
             {!premiumStatus.isPremium && (
               <div className="premium-hero">
                 <div className="premium-hero-icon">💎</div>
@@ -282,7 +304,6 @@ export default function Premium() {
               </div>
             )}
 
-            {/* Plans */}
             <h3 className="section-title" style={{ marginTop: "20px" }}>
               <span className="icon">🎯</span> প্ল্যান নির্বাচন করুন
             </h3>
@@ -331,7 +352,6 @@ export default function Premium() {
               ))}
             </div>
 
-            {/* Payment Info */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">💳</span> পেমেন্ট পদ্ধতি
             </h3>
@@ -377,9 +397,8 @@ export default function Premium() {
               </button>
             </div>
 
-            {/* ⭐ Screenshot Instructions */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
-              <span className="icon">📸</span> Screenshot Neyar Niyom
+              <span className="icon">📸</span> Screenshot নেয়ার নিয়ম
             </h3>
 
             <div className="screenshot-guide">
@@ -395,7 +414,6 @@ export default function Premium() {
                 </div>
               </div>
 
-              {/* Sample Screenshot */}
               <div className="screenshot-sample">
                 <img
                   src="https://i.postimg.cc/k4ncNYpz/Screenshot-20261006-014057.jpg"
@@ -434,7 +452,6 @@ export default function Premium() {
                 </ul>
               </div>
 
-              {/* Warning */}
               <div className="screenshot-warning">
                 <div className="warning-icon">⚠️</div>
                 <div>
@@ -451,7 +468,6 @@ export default function Premium() {
               </div>
             </div>
 
-            {/* ⭐ Submit Form */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📝</span> পেমেন্ট তথ্য দিন
             </h3>
@@ -498,52 +514,123 @@ export default function Premium() {
                 />
               </div>
 
-              {/* ⭐ Screenshot Upload */}
               <div className="field">
                 <label>
                   Payment Screenshot{" "}
                   <span className="required-mark">*</span>
                 </label>
 
-                {!screenshotPreview ? (
-                  <div
-                    className="screenshot-upload-box"
-                    onClick={() => fileInputRef.current?.click()}
+                <div className="screenshot-mode-tabs">
+                  <button
+                    type="button"
+                    className={`screenshot-mode-tab ${
+                      uploadMode === "file" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setUploadMode("file");
+                      if (error) setError("");
+                    }}
                   >
-                    <div className="screenshot-upload-icon">📸</div>
-                    <p className="screenshot-upload-title">
-                      Screenshot Upload করুন
-                    </p>
-                    <p className="screenshot-upload-sub">
-                      Tap করে Gallery থেকে Screenshot নির্বাচন করুন
-                    </p>
-                    <p className="screenshot-upload-hint">
-                      Max 5MB · JPG, PNG
-                    </p>
-                  </div>
-                ) : (
-                  <div className="screenshot-preview-box">
-                    <img src={screenshotPreview} alt="Screenshot" />
-                    <button
-                      type="button"
-                      className="screenshot-remove-btn"
-                      onClick={handleRemoveScreenshot}
-                    >
-                      ✕
-                    </button>
-                    <div className="screenshot-preview-badge">
-                      ✅ Screenshot যোগ হয়েছে
+                    📁 Gallery থেকে
+                  </button>
+                  <button
+                    type="button"
+                    className={`screenshot-mode-tab ${
+                      uploadMode === "url" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setUploadMode("url");
+                      if (error) setError("");
+                    }}
+                  >
+                    🔗 URL দিয়ে
+                  </button>
+                </div>
+
+                {uploadMode === "file" && (
+                  <>
+                    {!screenshotPreview ? (
+                      <div
+                        className="screenshot-upload-box"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="screenshot-upload-icon">📸</div>
+                        <p className="screenshot-upload-title">
+                          Screenshot Upload করুন
+                        </p>
+                        <p className="screenshot-upload-sub">
+                          Tap করে Gallery থেকে Screenshot নির্বাচন করুন
+                        </p>
+                        <p className="screenshot-upload-hint">
+                          Max 5MB · JPG, PNG
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="screenshot-preview-box">
+                        <img src={screenshotPreview} alt="Screenshot" />
+                        <button
+                          type="button"
+                          className="screenshot-remove-btn"
+                          onClick={handleRemoveScreenshot}
+                        >
+                          ✕
+                        </button>
+                        <div className="screenshot-preview-badge">
+                          ✅ Screenshot যোগ হয়েছে
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotSelect}
+                      style={{ display: "none" }}
+                    />
+                  </>
+                )}
+
+                {uploadMode === "url" && (
+                  <div className="screenshot-url-wrap">
+                    <div className="screenshot-url-input-wrap">
+                      <span className="screenshot-url-icon">🔗</span>
+                      <input
+                        type="url"
+                        className="screenshot-url-input"
+                        value={screenshotUrl}
+                        onChange={(e) => {
+                          setScreenshotUrl(e.target.value);
+                          if (error) setError("");
+                        }}
+                        placeholder="https://example.com/screenshot.jpg"
+                      />
                     </div>
+
+                    {screenshotUrl.trim() &&
+                      screenshotUrl.match(
+                        /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i
+                      ) && (
+                        <div className="screenshot-url-preview">
+                          <img
+                            src={screenshotUrl}
+                            alt="URL Preview"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                          <div className="screenshot-url-badge">
+                            ✅ Preview
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleScreenshotSelect}
-                  style={{ display: "none" }}
-                />
+                <p className="field-hint">
+                  💡 Gallery থেকে Select করুন অথবা URL দিন — একটাই
+                  বাধ্যতামূলক
+                </p>
               </div>
 
               <div className="premium-summary">
@@ -577,7 +664,6 @@ export default function Premium() {
               </button>
             </form>
 
-            {/* Request History */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📜</span> প্রিমিয়াম হিস্ট্রি
             </h3>

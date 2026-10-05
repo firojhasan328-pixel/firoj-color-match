@@ -63,17 +63,15 @@ export const PAYMENT_METHODS = [
 ];
 
 // ========================================
-// Screenshot Upload
+// Screenshot Upload (Returns File Path, not URL)
 // ========================================
 export async function uploadScreenshot(file, userId) {
   if (!file) throw new Error("Screenshot Select করা হয়নি।");
 
-  // File Size Check (5MB max)
   if (file.size > 5 * 1024 * 1024) {
     throw new Error("Screenshot ৫MB এর ছোট হতে হবে।");
   }
 
-  // File Type Check
   if (!file.type.startsWith("image/")) {
     throw new Error("শুধু Image File Upload করা যাবে।");
   }
@@ -90,11 +88,57 @@ export async function uploadScreenshot(file, userId) {
 
   if (error) throw error;
 
-  const { data: urlData } = supabase.storage
-    .from("payment-screenshots")
-    .getPublicUrl(data.path);
+  // ⭐ File Path Return করি (URL নয়)
+  return data.path;
+}
 
-  return urlData.publicUrl;
+// ========================================
+// Signed URL Generate (দেখার জন্য)
+// ========================================
+export async function getSignedScreenshotUrl(filePath, expiresIn = 3600) {
+  if (!filePath) return null;
+
+  const { data, error } = await supabase.storage
+    .from("payment-screenshots")
+    .createSignedUrl(filePath, expiresIn);
+
+  if (error) {
+    console.error("Signed URL error:", error);
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
+// ========================================
+// URL থেকে Screenshot Validate
+// ========================================
+export function validateScreenshotUrl(url) {
+  if (!url || !url.trim()) {
+    throw new Error("URL দিন।");
+  }
+
+  const cleanUrl = url.trim();
+
+  try {
+    new URL(cleanUrl);
+  } catch (err) {
+    throw new Error("সঠিক URL দিন।");
+  }
+
+  const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+  const lowerUrl = cleanUrl.toLowerCase();
+  const hasImageExt = imageExtensions.some((ext) =>
+    lowerUrl.includes(ext)
+  );
+
+  if (!hasImageExt) {
+    throw new Error(
+      "Image URL দিন (.jpg, .png, .webp শেষে থাকতে হবে)"
+    );
+  }
+
+  return cleanUrl;
 }
 
 // ========================================
@@ -109,7 +153,7 @@ export async function submitPremiumRequest({
   paymentMethod,
   trxId,
   senderNumber,
-  screenshotUrl,
+  screenshotPath,
 }) {
   const { data, error } = await supabase
     .from("premium_requests")
@@ -122,7 +166,7 @@ export async function submitPremiumRequest({
       payment_method: paymentMethod,
       trx_id: trxId,
       sender_number: senderNumber,
-      screenshot_url: screenshotUrl,
+      screenshot_url: screenshotPath, // ⭐ File Path Save
       status: "pending",
     })
     .select()

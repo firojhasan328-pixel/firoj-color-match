@@ -1,22 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { getUnreadCount } from "../services/notificationService";
+import {
+  getUnreadCount,
+  subscribeToNotifCount,
+} from "../services/notificationService";
 
 export default function NotificationBell() {
   const navigate = useNavigate();
   const [unread, setUnread] = useState(0);
 
+  // Count Refresh Function
+  async function refresh() {
+    const count = await getUnreadCount();
+    setUnread(count);
+  }
+
   // Initial Load
   useEffect(() => {
-    async function load() {
-      const count = await getUnreadCount();
-      setUnread(count);
-    }
-    load();
+    refresh();
   }, []);
 
-  // Real-time Subscription
+  // Subscribe to Global Event (যেকোনো Read/Delete হলে Fire হবে)
+  useEffect(() => {
+    const unsubscribe = subscribeToNotifCount(() => {
+      refresh();
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time Subscription (নতুন Notification এলে)
   useEffect(() => {
     let channel;
 
@@ -26,7 +39,7 @@ export default function NotificationBell() {
       if (!user) return;
 
       channel = supabase
-        .channel("notifications-count")
+        .channel("notif-bell-count")
         .on(
           "postgres_changes",
           {
@@ -35,9 +48,8 @@ export default function NotificationBell() {
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
-          async () => {
-            const count = await getUnreadCount();
-            setUnread(count);
+          () => {
+            refresh();
           }
         )
         .subscribe();

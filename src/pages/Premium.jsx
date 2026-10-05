@@ -398,7 +398,7 @@ export default function Premium() {
               {/* Sample Screenshot */}
               <div className="screenshot-sample">
                 <img
-                  src="https://i.postimg.cc/667hGYDg/Screenshot-20260727-124259.jpg"
+                  src="https://i.postimg.cc/k4ncNYpz/Screenshot-20261006-014057.jpg"
                   alt="Screenshot Sample"
                 />
                 <div className="screenshot-sample-badge">

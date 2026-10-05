@@ -10,7 +10,9 @@ import Premium from "./pages/Premium";
 import VerifyOTP from "./pages/VerifyOTP";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import NotificationsPage from "./pages/NotificationsPage";
 import "./styles/global.css";
+import "./styles/notifications.css";
 
 export default function App() {
   return (
@@ -26,6 +28,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/balance" element={<Balance />} />
         <Route path="/premium" element={<Premium />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/details/:colorId" element={<DetailsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

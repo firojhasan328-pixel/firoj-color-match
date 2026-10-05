@@ -3271,3 +3271,62 @@
   color: #92400e;
   font-weight: 700;
 }
+/* ========================================
+   RESULT MODAL — PREMIUM PILL
+   ======================================== */
+.modal-premium-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+  margin-left: auto;
+  flex-shrink: 0;
+  animation: premiumPillGlow 2s ease infinite;
+}
+
+@keyframes premiumPillGlow {
+  0%, 100% {
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 6px 24px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.modal-premium-pill span:first-child {
+  font-size: 14px;
+  animation: crownFloat 2s ease infinite;
+}
+
+/* Premium Unlock Button */
+.unlock-btn.premium {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+  font-size: 14.5px;
+}
+
+.unlock-btn.premium:hover {
+  filter: brightness(1.08);
+}
+
+.details-locked.premium {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border-color: #fbbf24;
+}
+
+.details-locked.premium .lock-icon {
+  filter: none;
+  font-size: 30px;
+}
+
+.details-locked.premium .lock-text {
+  color: #92400e;
+  font-weight: 800;
+}

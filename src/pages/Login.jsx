@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import PasswordInput from "../components/PasswordInput";
 import { signInWithEmail } from "../services/authService";
+import { autoPromptPermission } from "../services/onesignal";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,7 +23,17 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await signInWithEmail(email.trim(), password);
+      const data = await signInWithEmail(email.trim(), password);
+
+      // ⭐ OneSignal-এ User Link + Permission চাই
+      if (data?.user?.id) {
+        try {
+          await autoPromptPermission(data.user.id);
+        } catch (err) {
+          console.error("OneSignal setup error:", err);
+        }
+      }
+
       navigate("/home");
     } catch (err) {
       setError("ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।");

@@ -1,5 +1,6 @@
 import React from "react";
 import BalanceBox from "./BalanceBox";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar({
   userName = "User",
@@ -22,7 +23,16 @@ export default function Navbar({
         <div className="name">{userName}</div>
       </div>
 
-      <BalanceBox amount={balance} onClick={onBalanceClick} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <NotificationBell />
+        <BalanceBox amount={balance} onClick={onBalanceClick} />
+      </div>
     </nav>
   );
 }

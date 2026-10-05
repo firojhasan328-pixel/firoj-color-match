@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { unlockColor } from "../services/walletService";
 import { logAdUnlock } from "../services/adService";
+import { getMyProfile, checkPremiumStatus } from "../services/profileService";
+import { supabase } from "../lib/supabaseClient";
 import AdUnlockModal from "./AdUnlockModal";
 
 export default function ResultModal({
@@ -13,6 +15,36 @@ export default function ResultModal({
   const [unlockState, setUnlockState] = useState({});
   const [processing, setProcessing] = useState({});
   const [adModalMatch, setAdModalMatch] = useState(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [checkingPremium, setCheckingPremium] = useState(true);
+
+  // ⭐ Premium Status চেক
+  useEffect(() => {
+    async function check() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+          setCheckingPremium(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_premium, premium_expires_at")
+          .eq("id", user.id)
+          .single();
+
+        const status = checkPremiumStatus(profile);
+        setIsPremium(status.isPremium);
+      } catch (err) {
+        console.error("Premium check error:", err);
+      } finally {
+        setCheckingPremium(false);
+      }
+    }
+    check();
+  }, []);
 
   if (!result) return null;
 
@@ -27,10 +59,7 @@ export default function ResultModal({
     setProcessing((p) => ({ ...p, [match.id]: true }));
 
     try {
-      // Ad Log Save
       await logAdUnlock(currentUserId, match.id, 30);
-
-      // Unlock RPC
       await unlockColor(match.id, match.userId);
       setUnlockState((u) => ({ ...u, [match.id]: true }));
       if (onUnlocked) onUnlocked();
@@ -46,6 +75,22 @@ export default function ResultModal({
     setAdModalMatch(null);
   }
 
+  // ⭐ Premium User-এর জন্য সরাসরি Unlock
+  async function handlePremiumUnlock(match) {
+    setProcessing((p) => ({ ...p, [match.id]: true }));
+
+    try {
+      await unlockColor(match.id, match.userId);
+      setUnlockState((u) => ({ ...u, [match.id]: true }));
+      if (onUnlocked) onUnlocked();
+    } catch (err) {
+      console.error("Unlock error:", err);
+      setUnlockState((u) => ({ ...u, [match.id]: true }));
+    } finally {
+      setProcessing((p) => ({ ...p, [match.id]: false }));
+    }
+  }
+
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
@@ -59,6 +104,14 @@ export default function ResultModal({
               <p className="scan-label">স্ক্যান করা কালার</p>
               <p className="scan-hex">{scannedColor.hex}</p>
             </div>
+
+            {/* ⭐ Premium Badge */}
+            {isPremium && (
+              <div className="modal-premium-pill">
+                <span>👑</span>
+                <span>PREMIUM</span>
+              </div>
+            )}
           </div>
 
           {found ? (
@@ -123,9 +176,13 @@ export default function ResultModal({
                         </div>
                       ) : (
                         <div className="details-locked">
-                          <div className="lock-icon">🔒</div>
+                          <div className="lock-icon">
+                            {isPremium ? "👑" : "🔒"}
+                          </div>
                           <p className="lock-text">
-                            বিস্তারিত দেখতে Ad দেখে Unlock করুন
+                            {isPremium
+                              ? "Premium Member — সরাসরি Unlock করুন"
+                              : "বিস্তারিত দেখতে Ad দেখে Unlock করুন"}
                           </p>
 
                           {isProcessing ? (
@@ -133,7 +190,17 @@ export default function ResultModal({
                               <span className="pulse" />
                               Unlock হচ্ছে...
                             </div>
+                          ) : isPremium ? (
+                            // ⭐ Premium — Direct Unlock
+                            <button
+                              type="button"
+                              className="unlock-btn premium"
+                              onClick={() => handlePremiumUnlock(m)}
+                            >
+                              👑 সরাসরি Unlock করুন
+                            </button>
                           ) : (
+                            // Free User — Ad দেখতে হবে
                             <button
                               type="button"
                               className="unlock-btn"
@@ -173,7 +240,6 @@ export default function ResultModal({
         </div>
       </div>
 
-      {/* Ad Unlock Modal */}
       {adModalMatch && (
         <AdUnlockModal
           onComplete={handleAdComplete}

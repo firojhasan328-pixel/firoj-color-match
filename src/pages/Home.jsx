@@ -8,10 +8,14 @@ import ResultModal from "../components/ResultModal";
 import DetailsModal from "../components/DetailsModal";
 import DuplicateModal from "../components/DuplicateModal";
 import InvalidImageModal from "../components/InvalidImageModal";
+import AccountBlockedModal from "../components/AccountBlockedModal";
 import Footer from "../components/Footer";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
-import { getMyProfile } from "../services/profileService";
+import {
+  getMyProfile,
+  checkAccountStatus,
+} from "../services/profileService";
 import { getMyBalance } from "../services/walletService";
 import {
   uploadColorImage,
@@ -39,6 +43,8 @@ export default function Home() {
   const [scannedPreview, setScannedPreview] = useState(null);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [invalidInfo, setInvalidInfo] = useState(null);
+  const [blockInfo, setBlockInfo] = useState(null);
+  const [checkingBlock, setCheckingBlock] = useState(true);
 
   useEffect(() => {
     async function loadUser() {
@@ -58,6 +64,14 @@ export default function Home() {
       try {
         const profile = await getMyProfile();
         if (profile?.user_code) setUserCode(profile.user_code);
+
+        // ⭐ Account Status Check (Suspend/Lock)
+        const status = checkAccountStatus(profile);
+        if (status.blocked) {
+          setBlockInfo(status);
+          setCheckingBlock(false);
+          return;
+        }
       } catch (err) {
         console.error("Profile load error:", err);
       }
@@ -68,6 +82,8 @@ export default function Home() {
       } catch (err) {
         console.error("Balance load error:", err);
       }
+
+      setCheckingBlock(false);
     }
     loadUser();
   }, [navigate]);
@@ -202,6 +218,58 @@ export default function Home() {
         });
       }
     }, 200);
+  }
+
+  function handleBlockedLogout() {
+    setBlockInfo(null);
+    navigate("/login");
+  }
+
+  // ⭐ Loading Screen (Block Check-এর সময়)
+  if (checkingBlock) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f0f9ff",
+          flexDirection: "column",
+          gap: "16px",
+        }}
+      >
+        <div
+          style={{
+            width: "42px",
+            height: "42px",
+            border: "3px solid #bae6fd",
+            borderTopColor: "#0ea5e9",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#0284c7",
+            fontWeight: "600",
+          }}
+        >
+          লোড হচ্ছে...
+        </p>
+      </div>
+    );
+  }
+
+  // ⭐ Blocked Account হলে Popup দেখাই
+  if (blockInfo) {
+    return (
+      <AccountBlockedModal
+        info={blockInfo}
+        onLogout={handleBlockedLogout}
+      />
+    );
   }
 
   return (

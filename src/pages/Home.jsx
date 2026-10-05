@@ -65,7 +65,7 @@ export default function Home() {
         const profile = await getMyProfile();
         if (profile?.user_code) setUserCode(profile.user_code);
 
-        // ⭐ Account Status Check (Suspend/Lock)
+        // Account Status Check (Suspend/Lock)
         const status = checkAccountStatus(profile);
         if (status.blocked) {
           setBlockInfo(status);
@@ -225,7 +225,7 @@ export default function Home() {
     navigate("/login");
   }
 
-  // ⭐ Loading Screen (Block Check-এর সময়)
+  // Loading Screen
   if (checkingBlock) {
     return (
       <div
@@ -262,7 +262,7 @@ export default function Home() {
     );
   }
 
-  // ⭐ Blocked Account হলে Popup দেখাই
+  // Blocked Account
   if (blockInfo) {
     return (
       <AccountBlockedModal
@@ -304,6 +304,9 @@ export default function Home() {
             </a>
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
+            </a>
+            <a href="/notifications" onClick={() => setMenuOpen(false)}>
+              🔔 নোটিফিকেশন
             </a>
             <a href="/premium" onClick={() => setMenuOpen(false)}>
               💎 প্রিমিয়াম

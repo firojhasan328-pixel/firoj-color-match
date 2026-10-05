@@ -13,6 +13,7 @@ import {
   markAllAsRead,
   deleteNotification,
   deleteAllNotifications,
+  triggerCountRefresh,
   timeAgo,
   getNotificationStyle,
 } from "../services/notificationService";
@@ -30,10 +31,15 @@ export default function NotificationsPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState(null);
 
-  // Real-time থামানোর জন্য Ref
-  const realtimeChannelRef = useRef(null);
   const isMountedRef = useRef(true);
 
+  // Load Unread Count
+  async function refreshUnreadCount() {
+    const count = await getUnreadCount();
+    if (isMountedRef.current) setUnread(count);
+  }
+
+  // Load Full Data
   async function loadData(showLoader = false) {
     if (showLoader) setLoading(true);
     try {
@@ -50,14 +56,11 @@ export default function NotificationsPage() {
       const bal = await getMyBalance();
       setBalance(bal);
 
-      const [list, count] = await Promise.all([
-        getMyNotifications(100),
-        getUnreadCount(),
-      ]);
+      const list = await getMyNotifications(100);
 
       if (isMountedRef.current) {
         setNotifications(list);
-        setUnread(count);
+        await refreshUnreadCount();
       }
     } catch (err) {
       console.error("Notifications load error:", err);
@@ -66,25 +69,25 @@ export default function NotificationsPage() {
     }
   }
 
-  // Initial Load
   useEffect(() => {
     isMountedRef.current = true;
     loadData(true);
-
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
-  // Real-time (শুধু নতুন Notification এলে Count Update)
+  // Real-time — নতুন Insert হলে Full Reload
   useEffect(() => {
+    let channel;
+
     async function setupRealtime() {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
       if (!user) return;
 
-      realtimeChannelRef.current = supabase
-        .channel("notifications-page-rt")
+      channel = supabase
+        .channel("notif-page-rt")
         .on(
           "postgres_changes",
           {
@@ -94,10 +97,7 @@ export default function NotificationsPage() {
             filter: `user_id=eq.${user.id}`,
           },
           () => {
-            // শুধু নতুন Insert হলে Count Update
-            if (isMountedRef.current) {
-              loadData(false);
-            }
+            if (isMountedRef.current) loadData(false);
           }
         )
         .subscribe();
@@ -106,9 +106,7 @@ export default function NotificationsPage() {
     setupRealtime();
 
     return () => {
-      if (realtimeChannelRef.current) {
-        supabase.removeChannel(realtimeChannelRef.current);
-      }
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -117,9 +115,9 @@ export default function NotificationsPage() {
     navigate("/login");
   }
 
-  // Notification Tap করলে
+  // ⭐ Notification Tap করলে — Read Mark + Modal খোলা
   async function handleItemClick(notif) {
-    // ১। UI-তে সাথে সাথে Read Mark করি (Optimistic Update)
+    // ১। UI-তে সাথে সাথে Update (Optimistic)
     if (!notif.is_read) {
       setNotifications((prev) =>
         prev.map((n) =>
@@ -128,7 +126,7 @@ export default function NotificationsPage() {
       );
       setUnread((u) => Math.max(0, u - 1));
 
-      // ২। Database-এ Read Mark করি
+      // ২। Database-এ Read Mark (Event Fire হবে → Bell Update হবে)
       try {
         await markAsRead(notif.id);
       } catch (err) {
@@ -136,16 +134,14 @@ export default function NotificationsPage() {
       }
     }
 
-    // ৩। Full Details Modal খুলি (Reload না)
+    // ৩। Modal খুলি
     setSelectedNotif({ ...notif, is_read: true });
   }
 
-  // Modal বন্ধ
   function handleCloseModal() {
     setSelectedNotif(null);
   }
 
-  // Modal থেকে Link-এ যাওয়া
   function handleGoToLink() {
     if (selectedNotif?.link && selectedNotif.link.trim() !== "") {
       const link = selectedNotif.link;
@@ -154,6 +150,7 @@ export default function NotificationsPage() {
     }
   }
 
+  // ⭐ সব Read Mark
   async function handleMarkAllRead() {
     if (unread === 0) return;
     if (!confirm("সব Notification পড়া হিসেবে Mark করবেন?")) return;
@@ -170,11 +167,13 @@ export default function NotificationsPage() {
     }
   }
 
+  // ⭐ একটি ডিলিট
   async function handleDelete(id, e) {
     e.stopPropagation();
     if (!confirm("এই Notification টি ডিলিট করবেন?")) return;
 
-    const wasUnread = !notifications.find((n) => n.id === id)?.is_read;
+    const notif = notifications.find((n) => n.id === id);
+    const wasUnread = notif && !notif.is_read;
 
     // Optimistic
     setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -188,6 +187,7 @@ export default function NotificationsPage() {
     }
   }
 
+  // ⭐ সব ডিলিট
   async function handleDeleteAll() {
     if (notifications.length === 0) return;
     if (
@@ -402,7 +402,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* ⭐ Full Details Modal */}
+      {/* Details Modal */}
       {selectedNotif && (
         <div className="notif-modal-overlay" onClick={handleCloseModal}>
           <div

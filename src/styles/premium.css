@@ -464,3 +464,245 @@
     font-size: 22px;
   }
 }
+/* ========================================
+   SCREENSHOT MODE TABS
+   ======================================== */
+.screenshot-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.screenshot-mode-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.screenshot-mode-tab:hover {
+  color: #334155;
+}
+
+.screenshot-mode-tab.active {
+  background: #ffffff;
+  color: #0284c7;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+/* ========================================
+   FILE UPLOAD BOX
+   ======================================== */
+.screenshot-upload-box {
+  padding: 28px 20px;
+  border-radius: 16px;
+  border: 2px dashed #7dd3fc;
+  background: linear-gradient(135deg, #f0f9ff, #ffffff);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.screenshot-upload-box:hover {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #e0f2fe, #ffffff);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(14, 165, 233, 0.15);
+}
+
+.screenshot-upload-box:active {
+  transform: scale(0.98);
+}
+
+.screenshot-upload-icon {
+  font-size: 42px;
+  margin-bottom: 10px;
+  animation: uploadBounce 2s ease infinite;
+}
+
+@keyframes uploadBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.screenshot-upload-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0284c7;
+  margin-bottom: 4px;
+}
+
+.screenshot-upload-sub {
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.screenshot-upload-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* ========================================
+   SCREENSHOT PREVIEW
+   ======================================== */
+.screenshot-preview-box {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 3px solid #10b981;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+}
+
+.screenshot-preview-box img {
+  width: 100%;
+  display: block;
+  max-height: 350px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.screenshot-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.95);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  transition: all 0.15s;
+}
+
+.screenshot-remove-btn:hover {
+  background: #dc2626;
+  transform: scale(1.08);
+}
+
+.screenshot-remove-btn:active {
+  transform: scale(0.94);
+}
+
+.screenshot-preview-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.95);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+/* ========================================
+   URL INPUT
+   ======================================== */
+.screenshot-url-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.screenshot-url-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.screenshot-url-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.screenshot-url-input {
+  width: 100%;
+  padding: 13px 14px 13px 42px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.screenshot-url-input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.screenshot-url-input:focus {
+  border-color: #0ea5e9;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
+}
+
+.screenshot-url-preview {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 3px solid #10b981;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+}
+
+.screenshot-url-preview img {
+  width: 100%;
+  display: block;
+  max-height: 300px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.screenshot-url-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.95);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  backdrop-filter: blur(6px);
+}

@@ -1,8 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
 
-// ========================================
-// নিজের প্রোফাইল আনা
-// ========================================
 export async function getMyProfile() {
   const { data: authData } = await supabase.auth.getUser();
   const user = authData?.user;
@@ -15,7 +12,6 @@ export async function getMyProfile() {
     .single();
 
   if (error) {
-    // যদি Profile না থাকে (পুরনো User) → তৈরি করি
     if (error.code === "PGRST116") {
       const newCode = await generateUserCode();
       const meta = user.user_metadata || {};
@@ -32,6 +28,7 @@ export async function getMyProfile() {
           company: meta.company || "",
           designation: meta.designation || "",
           present_address: meta.present_address || "",
+          status: "active",
         })
         .select()
         .single();
@@ -45,8 +42,43 @@ export async function getMyProfile() {
   return data;
 }
 
-// Fallback: User Code তৈরি
 async function generateUserCode() {
   const random = Math.floor(Math.random() * 900000) + 100000;
   return "CM" + random;
+}
+
+// ========================================
+// Account Status Check
+// ========================================
+export function checkAccountStatus(profile) {
+  if (!profile) return { blocked: false };
+
+  const status = profile.status || "active";
+  const reason = profile.lock_reason || "";
+
+  if (status === "suspended") {
+    return {
+      blocked: true,
+      type: "suspended",
+      title: "আপনার অ্যাকাউন্ট সাসপেন্ড করা হয়েছে",
+      message: reason
+        ? `কারণ: ${reason}`
+        : "নিয়ম ভঙ্গের কারণে আপনার অ্যাকাউন্ট সাসপেন্ড করা হয়েছে।",
+      help: "বিস্তারিত জানতে বা অ্যাকাউন্ট সচল করতে লাইভ চ্যাটে অথবা Support Team-এর সাথে যোগাযোগ করুন।",
+    };
+  }
+
+  if (status === "locked") {
+    return {
+      blocked: true,
+      type: "locked",
+      title: "আপনার অ্যাকাউন্ট লক করা হয়েছে",
+      message: reason
+        ? `কারণ: ${reason}`
+        : "সন্দেহজনক কার্যকলাপের কারণে আপনার অ্যাকাউন্ট লক করা হয়েছে।",
+      help: "বিস্তারিত জানতে বা অ্যাকাউন্ট সচল করতে লাইভ চ্যাটে অথবা Support Team-এর সাথে যোগাযোগ করুন।",
+    };
+  }
+
+  return { blocked: false };
 }

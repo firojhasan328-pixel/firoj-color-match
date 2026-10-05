@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { PAYMENT_METHODS } from "../services/withdrawService";
+import React, { useEffect, useState } from "react";
+import { WALLET_METHODS } from "../services/walletService";
 
 const MIN_WITHDRAW = 300;
 
 export default function WithdrawModal({
   balance,
+  savedWallets = [],
   onClose,
   onSubmit,
   submitting,
@@ -13,6 +14,29 @@ export default function WithdrawModal({
   const [method, setMethod] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [error, setError] = useState("");
+
+  // Default Wallet Auto-Select
+  useEffect(() => {
+    if (savedWallets.length > 0) {
+      const defaultWallet =
+        savedWallets.find((w) => w.is_default) || savedWallets[0];
+      setMethod(defaultWallet.method);
+      setAccountNumber(defaultWallet.number);
+    }
+  }, [savedWallets]);
+
+  // Method Change হলে Account Number Auto-Fill
+  function handleMethodSelect(methodId) {
+    setMethod(methodId);
+    if (error) setError("");
+
+    const saved = savedWallets.find((w) => w.method === methodId);
+    if (saved) {
+      setAccountNumber(saved.number);
+    } else {
+      setAccountNumber("");
+    }
+  }
 
   function handleSubmit() {
     setError("");
@@ -52,7 +76,6 @@ export default function WithdrawModal({
         </div>
 
         <div className="wd-body">
-          {/* Balance Info */}
           <div className="wd-balance-info">
             <span className="wd-balance-label">আপনার ব্যালেন্স</span>
             <span className="wd-balance-value">৳{balance}</span>
@@ -81,38 +104,43 @@ export default function WithdrawModal({
             </p>
           </div>
 
-          {/* Payment Method */}
+          {/* Method */}
           <div className="wd-field">
             <label className="wd-label">
               Payment Method <span className="required-mark">*</span>
             </label>
             <div className="wd-method-grid">
-              {PAYMENT_METHODS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`wd-method-btn ${
-                    method === m.id ? "active" : ""
-                  }`}
-                  onClick={() => {
-                    setMethod(m.id);
-                    if (error) setError("");
-                  }}
-                  style={{
-                    borderColor: method === m.id ? m.color : "#e2e8f0",
-                  }}
-                >
-                  <span className="wd-method-icon">{m.icon}</span>
-                  <span
-                    className="wd-method-label"
+              {WALLET_METHODS.map((m) => {
+                const hasSaved = savedWallets.some(
+                  (w) => w.method === m.id
+                );
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`wd-method-btn ${
+                      method === m.id ? "active" : ""
+                    }`}
+                    onClick={() => handleMethodSelect(m.id)}
                     style={{
-                      color: method === m.id ? m.color : "#334155",
+                      borderColor: method === m.id ? m.color : "#e2e8f0",
                     }}
                   >
-                    {m.label}
-                  </span>
-                </button>
-              ))}
+                    <span className="wd-method-icon">{m.icon}</span>
+                    <span
+                      className="wd-method-label"
+                      style={{
+                        color: method === m.id ? m.color : "#334155",
+                      }}
+                    >
+                      {m.label}
+                    </span>
+                    {hasSaved && (
+                      <span className="wd-method-saved">✓</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -126,11 +154,14 @@ export default function WithdrawModal({
               className="wd-input"
               value={accountNumber}
               onChange={(e) => {
-                setAccountNumber(e.target.value.replace(/[^0-9]/g, ""));
+                setAccountNumber(
+                  e.target.value.replace(/[^0-9]/g, "").slice(0, 11)
+                );
                 if (error) setError("");
               }}
               placeholder="যেমন: 01918568313"
               maxLength={11}
+              inputMode="numeric"
             />
             <p className="wd-hint">
               যে নাম্বারে টাকা পাঠানো হবে সেটি দিন

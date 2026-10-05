@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -10,6 +10,7 @@ import {
   PREMIUM_PLANS,
   PAYMENT_METHODS,
   submitPremiumRequest,
+  uploadScreenshot,
   getMyPremiumRequests,
   getMyPremiumStatus,
   formatPremiumDate,
@@ -20,6 +21,8 @@ import "../styles/premium.css";
 
 export default function Premium() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
   const [userName, setUserName] = useState("User");
   const [userId, setUserId] = useState(null);
   const [userCode, setUserCode] = useState("");
@@ -37,6 +40,8 @@ export default function Premium() {
   const [selectedMethod, setSelectedMethod] = useState(PAYMENT_METHODS[0]);
   const [trxId, setTrxId] = useState("");
   const [senderNumber, setSenderNumber] = useState("");
+  const [screenshot, setScreenshot] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -82,6 +87,30 @@ export default function Premium() {
     navigate("/login");
   }
 
+  function handleScreenshotSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Screenshot ৫MB এর ছোট হতে হবে।");
+      return;
+    }
+
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setScreenshotPreview(event.target.result);
+    };
+    reader.readAsDataURL(file);
+    if (error) setError("");
+  }
+
+  function handleRemoveScreenshot() {
+    setScreenshot(null);
+    setScreenshotPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -99,9 +128,19 @@ export default function Premium() {
       setError("সঠিক ১১ ডিজিটের সেন্ডার নাম্বার দিন।");
       return;
     }
+    if (!screenshot) {
+      setError(
+        "⚠️ Payment Screenshot বাধ্যতামূলক। টাকা পাঠানোর পর Screenshot নিয়ে Upload করুন।"
+      );
+      return;
+    }
 
     setSubmitting(true);
     try {
+      // ১। Screenshot Upload
+      const screenshotUrl = await uploadScreenshot(screenshot, userId);
+
+      // ২। Premium Request Submit
       await submitPremiumRequest({
         userId,
         userCode,
@@ -111,6 +150,7 @@ export default function Premium() {
         paymentMethod: selectedMethod.id,
         trxId: trxId.trim(),
         senderNumber: senderNumber.trim(),
+        screenshotUrl,
       });
 
       setSuccess(
@@ -118,6 +158,7 @@ export default function Premium() {
       );
       setTrxId("");
       setSenderNumber("");
+      handleRemoveScreenshot();
 
       const reqs = await getMyPremiumRequests();
       setRequests(reqs);
@@ -185,6 +226,9 @@ export default function Premium() {
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
             </a>
+            <a href="/notifications" onClick={() => setMenuOpen(false)}>
+              🔔 নোটিফিকেশন
+            </a>
             <a href="/premium" onClick={() => setMenuOpen(false)}>
               💎 প্রিমিয়াম
             </a>
@@ -207,6 +251,7 @@ export default function Premium() {
           </div>
         ) : (
           <>
+            {/* Active Premium Card */}
             {premiumStatus.isPremium && (
               <div className="premium-active-card">
                 <div className="premium-active-badge">👑 PREMIUM</div>
@@ -223,6 +268,7 @@ export default function Premium() {
               </div>
             )}
 
+            {/* Hero */}
             {!premiumStatus.isPremium && (
               <div className="premium-hero">
                 <div className="premium-hero-icon">💎</div>
@@ -236,6 +282,7 @@ export default function Premium() {
               </div>
             )}
 
+            {/* Plans */}
             <h3 className="section-title" style={{ marginTop: "20px" }}>
               <span className="icon">🎯</span> প্ল্যান নির্বাচন করুন
             </h3>
@@ -284,6 +331,7 @@ export default function Premium() {
               ))}
             </div>
 
+            {/* Payment Info */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">💳</span> পেমেন্ট পদ্ধতি
             </h3>
@@ -329,6 +377,81 @@ export default function Premium() {
               </button>
             </div>
 
+            {/* ⭐ Screenshot Instructions */}
+            <h3 className="section-title" style={{ marginTop: "24px" }}>
+              <span className="icon">📸</span> Screenshot Neyar Niyom
+            </h3>
+
+            <div className="screenshot-guide">
+              <div className="screenshot-guide-header">
+                <div className="screenshot-guide-icon">📱</div>
+                <div>
+                  <h4 className="screenshot-guide-title">
+                    টাকা পাঠানোর পর এইভাবে Screenshot নিন
+                  </h4>
+                  <p className="screenshot-guide-sub">
+                    নিচের ছবির মতো Screenshot Upload করুন
+                  </p>
+                </div>
+              </div>
+
+              {/* Sample Screenshot */}
+              <div className="screenshot-sample">
+                <img
+                  src="https://i.postimg.cc/667hGYDg/Screenshot-20260727-124259.jpg"
+                  alt="Screenshot Sample"
+                />
+                <div className="screenshot-sample-badge">
+                  ✅ Sample Screenshot
+                </div>
+              </div>
+
+              <div className="screenshot-checklist">
+                <p className="screenshot-checklist-title">
+                  📋 Screenshot-এ যা যা থাকতে হবে:
+                </p>
+                <ul className="screenshot-list">
+                  <li>
+                    <span className="checklist-icon">✅</span>
+                    <span>"আপনার সেন্ড মানি সফল হয়েছে" লেখা</span>
+                  </li>
+                  <li>
+                    <span className="checklist-icon">✅</span>
+                    <span>Transaction ID (TrxID) স্পষ্ট দেখা যাবে</span>
+                  </li>
+                  <li>
+                    <span className="checklist-icon">✅</span>
+                    <span>Amount (৳{selectedPlan.price}) লেখা</span>
+                  </li>
+                  <li>
+                    <span className="checklist-icon">✅</span>
+                    <span>Time ও Date দেখা যাবে</span>
+                  </li>
+                  <li>
+                    <span className="checklist-icon">✅</span>
+                    <span>Receiver Number: {selectedMethod.number}</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Warning */}
+              <div className="screenshot-warning">
+                <div className="warning-icon">⚠️</div>
+                <div>
+                  <p className="warning-title">সতর্কতা!</p>
+                  <p className="warning-text">
+                    কেউ যদি <strong>ভুয়া Screenshot</strong> বা{" "}
+                    <strong>Duplicate TrxID</strong> দিয়ে প্রতারণা করার
+                    চেষ্টা করে, তাহলে তার Account{" "}
+                    <strong>Lock</strong> অথবা{" "}
+                    <strong>চিরতরে Suspend</strong> করা হবে। কোনো
+                    Exception নেই।
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ⭐ Submit Form */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📝</span> পেমেন্ট তথ্য দিন
             </h3>
@@ -336,8 +459,7 @@ export default function Premium() {
             <form onSubmit={handleSubmit} className="premium-form">
               <div className="field">
                 <label htmlFor="trxId">
-                  Transaction ID{" "}
-                  <span className="required-mark">*</span>
+                  Transaction ID <span className="required-mark">*</span>
                 </label>
                 <input
                   id="trxId"
@@ -347,7 +469,7 @@ export default function Premium() {
                     setTrxId(e.target.value.toUpperCase());
                     if (error) setError("");
                   }}
-                  placeholder="যেমন: BT78K2XYZ"
+                  placeholder="যেমন: DJ167DK9ZM"
                   maxLength={30}
                 />
                 <p className="field-hint">
@@ -373,6 +495,54 @@ export default function Premium() {
                   placeholder="যে নাম্বার থেকে পাঠিয়েছেন"
                   inputMode="numeric"
                   maxLength={11}
+                />
+              </div>
+
+              {/* ⭐ Screenshot Upload */}
+              <div className="field">
+                <label>
+                  Payment Screenshot{" "}
+                  <span className="required-mark">*</span>
+                </label>
+
+                {!screenshotPreview ? (
+                  <div
+                    className="screenshot-upload-box"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="screenshot-upload-icon">📸</div>
+                    <p className="screenshot-upload-title">
+                      Screenshot Upload করুন
+                    </p>
+                    <p className="screenshot-upload-sub">
+                      Tap করে Gallery থেকে Screenshot নির্বাচন করুন
+                    </p>
+                    <p className="screenshot-upload-hint">
+                      Max 5MB · JPG, PNG
+                    </p>
+                  </div>
+                ) : (
+                  <div className="screenshot-preview-box">
+                    <img src={screenshotPreview} alt="Screenshot" />
+                    <button
+                      type="button"
+                      className="screenshot-remove-btn"
+                      onClick={handleRemoveScreenshot}
+                    >
+                      ✕
+                    </button>
+                    <div className="screenshot-preview-badge">
+                      ✅ Screenshot যোগ হয়েছে
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleScreenshotSelect}
+                  style={{ display: "none" }}
                 />
               </div>
 
@@ -407,6 +577,7 @@ export default function Premium() {
               </button>
             </form>
 
+            {/* Request History */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📜</span> প্রিমিয়াম হিস্ট্রি
             </h3>

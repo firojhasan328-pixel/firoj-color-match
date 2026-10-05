@@ -3,17 +3,21 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import WithdrawModal from "../components/WithdrawModal";
+import WalletManager from "../components/WalletManager";
 import { supabase } from "../lib/supabaseClient";
 import { getMyProfile } from "../services/profileService";
-import { getMyBalance } from "../services/walletService";
+import {
+  getMyBalance,
+  getMyWallets,
+  WALLET_METHODS,
+} from "../services/walletService";
 import { signOut } from "../services/authService";
 import {
   getMyWithdrawals,
-  createWithdrawRequest,
   calculateWithdrawStats,
-  PAYMENT_METHODS,
 } from "../services/withdrawService";
 import "../styles/home.css";
+import "../styles/wallet.css";
 
 const MIN_WITHDRAW = 300;
 
@@ -23,6 +27,7 @@ export default function Balance() {
   const [userId, setUserId] = useState(null);
   const [userCode, setUserCode] = useState("");
   const [balance, setBalance] = useState(0);
+  const [wallets, setWallets] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,6 +55,9 @@ export default function Balance() {
       const bal = await getMyBalance();
       setBalance(bal);
 
+      const w = await getMyWallets();
+      setWallets(w);
+
       const wd = await getMyWithdrawals();
       setWithdrawals(wd);
     } catch (err) {
@@ -68,6 +76,11 @@ export default function Balance() {
     navigate("/login");
   }
 
+  async function refreshWallets() {
+    const w = await getMyWallets();
+    setWallets(w);
+  }
+
   async function handleWithdrawSubmit({
     amount,
     paymentMethod,
@@ -75,6 +88,9 @@ export default function Balance() {
   }) {
     setSubmitting(true);
     try {
+      const { createWithdrawRequest } = await import(
+        "../services/withdrawService"
+      );
       await createWithdrawRequest({
         userId,
         userCode,
@@ -98,9 +114,14 @@ export default function Balance() {
 
   const { totalWithdrawn, pendingAmount } = calculateWithdrawStats(withdrawals);
 
-  function getMethodLabel(id) {
-    const m = PAYMENT_METHODS.find((x) => x.id === id);
-    return m ? m.label : id;
+  function getMethodInfo(methodId) {
+    return (
+      WALLET_METHODS.find((m) => m.id === methodId) || {
+        label: methodId,
+        icon: "💳",
+        color: "#64748b",
+      }
+    );
   }
 
   function formatDate(dateStr) {
@@ -123,6 +144,7 @@ export default function Balance() {
   }
 
   const canWithdraw = balance >= MIN_WITHDRAW;
+  const progress = Math.min(100, (balance / MIN_WITHDRAW) * 100);
 
   return (
     <div className="home-page">
@@ -157,6 +179,9 @@ export default function Balance() {
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
             </a>
+            <a href="/premium" onClick={() => setMenuOpen(false)}>
+              💎 প্রিমিয়াম
+            </a>
             <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল
             </a>
@@ -166,10 +191,7 @@ export default function Balance() {
       )}
 
       <section className="section" style={{ maxWidth: "560px" }}>
-        <button
-          className="back-btn"
-          onClick={() => navigate("/home")}
-        >
+        <button className="back-btn" onClick={() => navigate("/home")}>
           ← ফিরে যান
         </button>
 
@@ -179,38 +201,83 @@ export default function Balance() {
           </div>
         ) : (
           <>
-            {/* Main Balance Card */}
-            <div className="balance-main-card">
-              <p className="balance-main-label">মোট ব্যালেন্স</p>
-              <h1 className="balance-main-amount">৳{balance}</h1>
+            {/* ===== Premium Balance Card ===== */}
+            <div className="wallet-hero-card">
+              <div className="wallet-hero-glow" />
+              <div className="wallet-hero-content">
+                <p className="wallet-hero-label">💰 মোট ব্যালেন্স</p>
+                <h1 className="wallet-hero-amount">৳{balance}</h1>
+                <p className="wallet-hero-sub">
+                  {canWithdraw
+                    ? "আপনি এখন Withdraw করতে পারবেন"
+                    : `আরও ৳${MIN_WITHDRAW - balance} যোগ করলে Withdraw করতে পারবেন`}
+                </p>
 
-              <div className="balance-stats-row">
-                <div className="balance-stat">
-                  <p className="balance-stat-label">মোট Withdraw</p>
-                  <p className="balance-stat-value">
-                    ৳{totalWithdrawn}
-                  </p>
+                {/* Progress Bar */}
+                <div className="wallet-progress-wrap">
+                  <div
+                    className="wallet-progress-fill"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-                <div className="balance-stat">
-                  <p className="balance-stat-label">Pending</p>
-                  <p className="balance-stat-value">৳{pendingAmount}</p>
+                <div className="wallet-progress-labels">
+                  <span>৳০</span>
+                  <span>৳{MIN_WITHDRAW}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ===== Stats Grid ===== */}
+            <div className="wallet-stats-grid">
+              <div className="wallet-stat-card">
+                <div className="wallet-stat-icon earned">📈</div>
+                <div>
+                  <p className="wallet-stat-label">মোট Withdraw</p>
+                  <p className="wallet-stat-value">৳{totalWithdrawn}</p>
                 </div>
               </div>
 
-              <button
-                className={`withdraw-btn ${
-                  canWithdraw ? "" : "disabled"
-                }`}
-                onClick={() => canWithdraw && setModalOpen(true)}
-                disabled={!canWithdraw}
-              >
-                {canWithdraw
-                  ? "💸 Withdraw করুন"
-                  : `💸 ৳${MIN_WITHDRAW} হলে Withdraw করতে পারবেন`}
-              </button>
+              <div className="wallet-stat-card">
+                <div className="wallet-stat-icon pending">⏳</div>
+                <div>
+                  <p className="wallet-stat-label">Pending</p>
+                  <p className="wallet-stat-value">৳{pendingAmount}</p>
+                </div>
+              </div>
             </div>
 
-            {/* Withdraw History */}
+            {/* ===== Withdraw Button ===== */}
+            <button
+              className={`wallet-withdraw-btn ${
+                canWithdraw ? "" : "disabled"
+              }`}
+              onClick={() => canWithdraw && setModalOpen(true)}
+              disabled={!canWithdraw}
+            >
+              {canWithdraw ? (
+                <>
+                  <span className="withdraw-icon">💸</span>
+                  Withdraw করুন
+                </>
+              ) : (
+                <>
+                  <span className="withdraw-icon">🔒</span>
+                  ৳{MIN_WITHDRAW} হলে Withdraw করতে পারবেন
+                </>
+              )}
+            </button>
+
+            {/* ===== E-Wallet Manager ===== */}
+            <h3 className="section-title" style={{ marginTop: "24px" }}>
+              <span className="icon">💳</span> আমার ই-ওয়ালেট
+            </h3>
+            <WalletManager
+              wallets={wallets}
+              onUpdate={refreshWallets}
+              embedded
+            />
+
+            {/* ===== Withdraw History ===== */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📜</span> Withdraw History
             </h3>
@@ -223,11 +290,21 @@ export default function Balance() {
               <div className="wd-history-list">
                 {withdrawals.map((w) => {
                   const badge = getStatusBadge(w.status);
+                  const methodInfo = getMethodInfo(w.payment_method);
                   return (
                     <div key={w.id} className="wd-history-item">
+                      <div
+                        className="wd-method-icon"
+                        style={{
+                          background: `${methodInfo.color}15`,
+                          color: methodInfo.color,
+                        }}
+                      >
+                        {methodInfo.icon}
+                      </div>
                       <div className="wd-history-left">
                         <div className="wd-history-method">
-                          {getMethodLabel(w.payment_method)}
+                          {methodInfo.label}
                         </div>
                         <div className="wd-history-account">
                           {w.account_number}
@@ -258,6 +335,7 @@ export default function Balance() {
       {modalOpen && (
         <WithdrawModal
           balance={balance}
+          savedWallets={wallets}
           onClose={() => setModalOpen(false)}
           onSubmit={handleWithdrawSubmit}
           submitting={submitting}

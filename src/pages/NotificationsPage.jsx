@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -28,9 +28,14 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState(null);
 
-  async function loadData() {
-    setLoading(true);
+  // Real-time থামানোর জন্য Ref
+  const realtimeChannelRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  async function loadData(showLoader = false) {
+    if (showLoader) setLoading(true);
     try {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
@@ -49,48 +54,61 @@ export default function NotificationsPage() {
         getMyNotifications(100),
         getUnreadCount(),
       ]);
-      setNotifications(list);
-      setUnread(count);
+
+      if (isMountedRef.current) {
+        setNotifications(list);
+        setUnread(count);
+      }
     } catch (err) {
       console.error("Notifications load error:", err);
     } finally {
-      setLoading(false);
+      if (showLoader && isMountedRef.current) setLoading(false);
     }
   }
 
+  // Initial Load
   useEffect(() => {
-    loadData();
-  }, [navigate]);
+    isMountedRef.current = true;
+    loadData(true);
 
-  // Real-time
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Real-time (শুধু নতুন Notification এলে Count Update)
   useEffect(() => {
-    let channel;
-
     async function setupRealtime() {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
       if (!user) return;
 
-      channel = supabase
+      realtimeChannelRef.current = supabase
         .channel("notifications-page-rt")
         .on(
           "postgres_changes",
           {
-            event: "*",
+            event: "INSERT",
             schema: "public",
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
           () => {
-            loadData();
+            // শুধু নতুন Insert হলে Count Update
+            if (isMountedRef.current) {
+              loadData(false);
+            }
           }
         )
         .subscribe();
     }
 
     setupRealtime();
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+      }
     };
   }, []);
 
@@ -99,22 +117,57 @@ export default function NotificationsPage() {
     navigate("/login");
   }
 
-  async function handleMarkRead(id) {
-    if (notifications.find((n) => n.id === id)?.is_read) return;
-    await markAsRead(id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-    );
-    setUnread((u) => Math.max(0, u - 1));
+  // Notification Tap করলে
+  async function handleItemClick(notif) {
+    // ১। UI-তে সাথে সাথে Read Mark করি (Optimistic Update)
+    if (!notif.is_read) {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notif.id ? { ...n, is_read: true } : n
+        )
+      );
+      setUnread((u) => Math.max(0, u - 1));
+
+      // ২। Database-এ Read Mark করি
+      try {
+        await markAsRead(notif.id);
+      } catch (err) {
+        console.error("Mark read error:", err);
+      }
+    }
+
+    // ৩। Full Details Modal খুলি (Reload না)
+    setSelectedNotif({ ...notif, is_read: true });
+  }
+
+  // Modal বন্ধ
+  function handleCloseModal() {
+    setSelectedNotif(null);
+  }
+
+  // Modal থেকে Link-এ যাওয়া
+  function handleGoToLink() {
+    if (selectedNotif?.link && selectedNotif.link.trim() !== "") {
+      const link = selectedNotif.link;
+      setSelectedNotif(null);
+      navigate(link);
+    }
   }
 
   async function handleMarkAllRead() {
     if (unread === 0) return;
     if (!confirm("সব Notification পড়া হিসেবে Mark করবেন?")) return;
 
-    await markAllAsRead();
+    // Optimistic
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnread(0);
+
+    try {
+      await markAllAsRead();
+    } catch (err) {
+      console.error(err);
+      loadData(false);
+    }
   }
 
   async function handleDelete(id, e) {
@@ -122,9 +175,17 @@ export default function NotificationsPage() {
     if (!confirm("এই Notification টি ডিলিট করবেন?")) return;
 
     const wasUnread = !notifications.find((n) => n.id === id)?.is_read;
-    await deleteNotification(id);
+
+    // Optimistic
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     if (wasUnread) setUnread((u) => Math.max(0, u - 1));
+
+    try {
+      await deleteNotification(id);
+    } catch (err) {
+      console.error(err);
+      loadData(false);
+    }
   }
 
   async function handleDeleteAll() {
@@ -136,15 +197,15 @@ export default function NotificationsPage() {
     )
       return;
 
-    await deleteAllNotifications();
+    // Optimistic
     setNotifications([]);
     setUnread(0);
-  }
 
-  function handleItemClick(notif) {
-    handleMarkRead(notif.id);
-    if (notif.link && notif.link.trim() !== "") {
-      navigate(notif.link);
+    try {
+      await deleteAllNotifications();
+    } catch (err) {
+      console.error(err);
+      loadData(false);
     }
   }
 
@@ -165,6 +226,10 @@ export default function NotificationsPage() {
     { id: "premium", label: "Premium", icon: "👑" },
     { id: "withdraw", label: "Withdraw", icon: "💰" },
   ];
+
+  const selectedStyle = selectedNotif
+    ? getNotificationStyle(selectedNotif.type)
+    : null;
 
   return (
     <div className="home-page">
@@ -199,11 +264,11 @@ export default function NotificationsPage() {
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
             </a>
-            <a href="/premium" onClick={() => setMenuOpen(false)}>
-              💎 প্রিমিয়াম
-            </a>
             <a href="/notifications" onClick={() => setMenuOpen(false)}>
               🔔 নোটিফিকেশন
+            </a>
+            <a href="/premium" onClick={() => setMenuOpen(false)}>
+              💎 প্রিমিয়াম
             </a>
             <a href="/profile" onClick={() => setMenuOpen(false)}>
               👤 প্রোফাইল
@@ -336,6 +401,61 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      {/* ⭐ Full Details Modal */}
+      {selectedNotif && (
+        <div className="notif-modal-overlay" onClick={handleCloseModal}>
+          <div
+            className="notif-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="notif-modal-header">
+              <div
+                className="notif-modal-icon"
+                style={{
+                  background: selectedStyle?.bg,
+                  color: selectedStyle?.color,
+                }}
+              >
+                {selectedNotif.icon || selectedStyle?.icon}
+              </div>
+              <button
+                className="notif-modal-close"
+                onClick={handleCloseModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            <h2 className="notif-modal-title">{selectedNotif.title}</h2>
+
+            <p className="notif-modal-time">
+              🕐 {timeAgo(selectedNotif.created_at)}
+            </p>
+
+            <div className="notif-modal-body">
+              <p className="notif-modal-message">{selectedNotif.message}</p>
+            </div>
+
+            <div className="notif-modal-actions">
+              {selectedNotif.link && selectedNotif.link.trim() !== "" && (
+                <button
+                  className="notif-modal-btn primary"
+                  onClick={handleGoToLink}
+                >
+                  🔗 এখানে যান
+                </button>
+              )}
+              <button
+                className="notif-modal-btn secondary"
+                onClick={handleCloseModal}
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

@@ -82,3 +82,53 @@ export function checkAccountStatus(profile) {
 
   return { blocked: false };
 }
+
+// ========================================
+// ⭐ Premium Status Check
+// ========================================
+export function checkPremiumStatus(profile) {
+  if (!profile?.is_premium) {
+    return { isPremium: false, expiresAt: null, daysLeft: 0 };
+  }
+
+  let expiresAt = profile.premium_expires_at;
+  let isPremium = true;
+
+  // Expire Check
+  if (expiresAt) {
+    const exp = new Date(expiresAt);
+    const now = new Date();
+    if (exp < now) {
+      isPremium = false;
+    }
+  }
+
+  // Days Left
+  let daysLeft = 0;
+  if (expiresAt && isPremium) {
+    const exp = new Date(expiresAt);
+    const now = new Date();
+    daysLeft = Math.max(
+      0,
+      Math.ceil((exp - now) / (1000 * 60 * 60 * 24))
+    );
+  }
+
+  return {
+    isPremium,
+    expiresAt,
+    daysLeft,
+  };
+}
+
+// ========================================
+// Format Premium Date
+// ========================================
+export function formatPremiumExpiry(expiresAt) {
+  if (!expiresAt) return "—";
+  return new Date(expiresAt).toLocaleDateString("bn-BD", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}

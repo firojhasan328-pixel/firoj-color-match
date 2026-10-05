@@ -1,6 +1,26 @@
 import { supabase } from "../lib/supabaseClient";
 
 // ========================================
+// Global Event System
+// ========================================
+const listeners = new Set();
+
+export function subscribeToNotifCount(callback) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
+
+function notifyCountChange() {
+  listeners.forEach((cb) => {
+    try {
+      cb();
+    } catch (err) {
+      console.error("Notif listener error:", err);
+    }
+  });
+}
+
+// ========================================
 // নিজের সব Notification আনা
 // ========================================
 export async function getMyNotifications(limit = 100) {
@@ -56,6 +76,9 @@ export async function markAsRead(notificationId) {
     console.error("Mark read error:", error);
     return false;
   }
+
+  // Event Fire — সব Component Update হবে
+  notifyCountChange();
   return true;
 }
 
@@ -77,6 +100,9 @@ export async function markAllAsRead() {
     console.error("Mark all read error:", error);
     return false;
   }
+
+  // Event Fire
+  notifyCountChange();
   return true;
 }
 
@@ -93,6 +119,9 @@ export async function deleteNotification(notificationId) {
     console.error("Delete notification error:", error);
     return false;
   }
+
+  // Event Fire
+  notifyCountChange();
   return true;
 }
 
@@ -113,7 +142,17 @@ export async function deleteAllNotifications() {
     console.error("Delete all error:", error);
     return false;
   }
+
+  // Event Fire
+  notifyCountChange();
   return true;
+}
+
+// ========================================
+// Manual Event Fire (বাইরে থেকে Call করার জন্য)
+// ========================================
+export function triggerCountRefresh() {
+  notifyCountChange();
 }
 
 // ========================================

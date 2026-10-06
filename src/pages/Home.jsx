@@ -10,6 +10,7 @@ import DuplicateModal from "../components/DuplicateModal";
 import InvalidImageModal from "../components/InvalidImageModal";
 import AccountBlockedModal from "../components/AccountBlockedModal";
 import Footer from "../components/Footer";
+import LiveChatWidget from "../components/LiveChatWidget";
 import { supabase } from "../lib/supabaseClient";
 import { signOut } from "../services/authService";
 import {
@@ -24,6 +25,7 @@ import {
   checkDuplicateColor,
 } from "../services/colorStorage";
 import "../styles/home.css";
+import "../styles/chat.css";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -410,6 +412,9 @@ export default function Home() {
           onTryAgain={handleInvalidTryAgain}
         />
       )}
+
+      {/* ⭐ Live Chat Widget */}
+      <LiveChatWidget />
     </div>
   );
 }

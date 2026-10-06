@@ -14,6 +14,7 @@ import {
 import { signOut } from "../services/authService";
 import {
   getMyWithdrawals,
+  createWithdrawRequest,
   calculateWithdrawStats,
 } from "../services/withdrawService";
 import "../styles/home.css";
@@ -71,6 +72,59 @@ export default function Balance() {
     loadData();
   }, [navigate]);
 
+  // ⭐ Real-time: Withdraw বা Wallet Change হলে Auto Reload
+  useEffect(() => {
+    let wdChannel, walletChannel;
+
+    async function setupRealtime() {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (!user) return;
+
+      // Withdrawals Real-time
+      wdChannel = supabase
+        .channel("balance-wd-rt")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "withdrawals",
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            await loadData();
+          }
+        )
+        .subscribe();
+
+      // Wallet Real-time (Balance Update হলে)
+      walletChannel = supabase
+        .channel("balance-wallet-rt")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "wallets",
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            const bal = await getMyBalance();
+            setBalance(bal);
+          }
+        )
+        .subscribe();
+    }
+
+    setupRealtime();
+
+    return () => {
+      if (wdChannel) supabase.removeChannel(wdChannel);
+      if (walletChannel) supabase.removeChannel(walletChannel);
+    };
+  }, []);
+
   async function handleLogout() {
     await signOut();
     navigate("/login");
@@ -88,25 +142,21 @@ export default function Balance() {
   }) {
     setSubmitting(true);
     try {
-      const { createWithdrawRequest } = await import(
-        "../services/withdrawService"
-      );
       await createWithdrawRequest({
-        userId,
-        userCode,
-        ownerName: userName,
         amount,
         paymentMethod,
         accountNumber,
       });
+
       setModalOpen(false);
       await loadData();
+
       alert(
-        "✅ Withdraw Request পাঠানো হয়েছে! ২৪-৪৮ ঘণ্টার মধ্যে Payment পাবেন।"
+        `✅ Withdraw Request পাঠানো হয়েছে!\n\n৳${amount} আপনার Balance থেকে Hold করা হয়েছে।\n২৪-৪৮ ঘণ্টার মধ্যে Payment পাবেন।`
       );
     } catch (err) {
       console.error(err);
-      alert("❌ Request পাঠানো যায়নি: " + (err?.message || "অজানা সমস্যা"));
+      alert("❌ " + (err?.message || "Request পাঠানো যায়নি"));
     } finally {
       setSubmitting(false);
     }
@@ -143,8 +193,10 @@ export default function Balance() {
     return map[status] || map.pending;
   }
 
-  const canWithdraw = balance >= MIN_WITHDRAW;
-  const progress = Math.min(100, (balance / MIN_WITHDRAW) * 100);
+  // ⭐ Available Balance (Total - Pending)
+  const availableBalance = balance;
+  const canWithdraw = availableBalance >= MIN_WITHDRAW;
+  const progress = Math.min(100, (availableBalance / MIN_WITHDRAW) * 100);
 
   return (
     <div className="home-page">
@@ -179,6 +231,9 @@ export default function Balance() {
             <a href="/balance" onClick={() => setMenuOpen(false)}>
               💰 ব্যালেন্স
             </a>
+            <a href="/notifications" onClick={() => setMenuOpen(false)}>
+              🔔 নোটিফিকেশন
+            </a>
             <a href="/premium" onClick={() => setMenuOpen(false)}>
               💎 প্রিমিয়াম
             </a>
@@ -201,19 +256,20 @@ export default function Balance() {
           </div>
         ) : (
           <>
-            {/* ===== Premium Balance Card ===== */}
+            {/* Premium Balance Card */}
             <div className="wallet-hero-card">
               <div className="wallet-hero-glow" />
               <div className="wallet-hero-content">
-                <p className="wallet-hero-label">💰 মোট ব্যালেন্স</p>
-                <h1 className="wallet-hero-amount">৳{balance}</h1>
+                <p className="wallet-hero-label">
+                  💰 Available Balance
+                </p>
+                <h1 className="wallet-hero-amount">৳{availableBalance}</h1>
                 <p className="wallet-hero-sub">
                   {canWithdraw
                     ? "আপনি এখন Withdraw করতে পারবেন"
-                    : `আরও ৳${MIN_WITHDRAW - balance} যোগ করলে Withdraw করতে পারবেন`}
+                    : `আরও ৳${MIN_WITHDRAW - availableBalance} যোগ করলে Withdraw করতে পারবেন`}
                 </p>
 
-                {/* Progress Bar */}
                 <div className="wallet-progress-wrap">
                   <div
                     className="wallet-progress-fill"
@@ -227,7 +283,7 @@ export default function Balance() {
               </div>
             </div>
 
-            {/* ===== Stats Grid ===== */}
+            {/* Stats Grid */}
             <div className="wallet-stats-grid">
               <div className="wallet-stat-card">
                 <div className="wallet-stat-icon earned">📈</div>
@@ -240,13 +296,13 @@ export default function Balance() {
               <div className="wallet-stat-card">
                 <div className="wallet-stat-icon pending">⏳</div>
                 <div>
-                  <p className="wallet-stat-label">Pending</p>
+                  <p className="wallet-stat-label">Pending (Hold)</p>
                   <p className="wallet-stat-value">৳{pendingAmount}</p>
                 </div>
               </div>
             </div>
 
-            {/* ===== Withdraw Button ===== */}
+            {/* Withdraw Button */}
             <button
               className={`wallet-withdraw-btn ${
                 canWithdraw ? "" : "disabled"
@@ -267,7 +323,7 @@ export default function Balance() {
               )}
             </button>
 
-            {/* ===== E-Wallet Manager ===== */}
+            {/* E-Wallet Manager */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">💳</span> আমার ই-ওয়ালেট
             </h3>
@@ -277,7 +333,7 @@ export default function Balance() {
               embedded
             />
 
-            {/* ===== Withdraw History ===== */}
+            {/* Withdraw History */}
             <h3 className="section-title" style={{ marginTop: "24px" }}>
               <span className="icon">📜</span> Withdraw History
             </h3>
@@ -334,7 +390,7 @@ export default function Balance() {
 
       {modalOpen && (
         <WithdrawModal
-          balance={balance}
+          balance={availableBalance}
           savedWallets={wallets}
           onClose={() => setModalOpen(false)}
           onSubmit={handleWithdrawSubmit}

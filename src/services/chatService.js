@@ -1,114 +1,69 @@
 import { supabase } from "../lib/supabaseClient";
 
-// ========================================
-// Gemini API Config
-// ========================================
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+// ============================================
+// 🔑 Supabase Edge Function URL
+// এখানে Gemini key নেই — key আছে Supabase-এ
+// ============================================
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const CHAT_AI_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/chat-ai`;
 
-// ========================================
-// System Prompt — AI-কে বলা হবে সে কে
-// ========================================
-const SYSTEM_PROMPT = `তুমি "Color Match" ওয়েবসাইটের AI সহায়ক। তোমার নাম "Color Assistant"।
-
-তোমার কাজ:
-1. ব্যবহারকারীদের বাংলায় সাহায্য করা
-2. ওয়েবসাইট সম্পর্কিত প্রশ্নের উত্তর দেওয়া
-3. বিনয়ী, সহায়ক ও সংক্ষিপ্ত উত্তর দেওয়া
-4. কখনো রুক্ষ বা অসম্মানজনক ভাষা ব্যবহার করবে না
-
-ওয়েবসাইট সম্পর্কে তথ্য:
-- নাম: Color Match
-- কাজ: ব্যবহারকারীরা ছবি আপলোড করে রঙ বিশ্লেষণ করতে পারেন
-- গ্লোবাল গ্যালারি: সব ইউজারের শেয়ার করা ছবি
-- AI স্ক্যানার: ক্যামেরা বা গ্যালারি দিয়ে কালার স্ক্যান করা যায়
-- Details Unlock: Ad দেখলে Details পাওয়া যায়
-- Premium: মাসিক ৳৩০০, বার্ষিক ৳২০০০
-- Premium সুবিধা: Ad ছাড়াই Details Unlock
-- Withdraw: Balance ৳৩০০ হলে Withdraw করা যায়
-- Payment Method: বিকাশ, নগদ, রকেট, উপায়
-- Support WhatsApp: 01918568313
-
-নিয়ম:
-- সংক্ষিপ্ত উত্তর দেবে (সর্বোচ্চ ২-৩ বাক্য)
-- যদি প্রশ্নের উত্তর না জানো, তাহলে বলবে "আমি নিশ্চিত নই, Support Team-এর সাথে যোগাযোগ করুন: WhatsApp 01918568313"
-- ইমোজি ব্যবহার করবে কিন্তু মাত্রা বজায় রাখবে
-- ব্যবহারকারীকে কখনো টাকা পাঠাতে বলবে না
-- কখনো পাসওয়ার্ড বা গোপন তথ্য চাইবে না
-
-যদি ব্যবহারকারী বারবার একই সমস্যায় পড়ে বা "Admin", "Support", "মানুষ" ইত্যাদি বলে, তাহলে বিনয়ের সাথে বলবে: "Admin-এর সাথে কথা বলতে উপরের 🔴 Live Support বাটনে চাপুন।"`;
-
-// ========================================
-// Gemini API-তে Message পাঠানো
-// ========================================
+// ============================================
+// AI Response — Supabase Edge Function-কে call করে
+// ============================================
 export async function getAIResponse(userMessage, conversationHistory = []) {
-  if (!GEMINI_API_KEY) {
+  if (!SUPABASE_URL) {
     return {
       success: false,
       message:
-        "AI Service Configuration Missing। Support Team-এর সাথে যোগাযোগ করুন।",
+        "Configuration Missing। Support Team-এর সাথে যোগাযোগ করুন: 01918568313",
     };
   }
 
   try {
-    const contents = [];
+    // History প্রস্তুত করি (Edge Function-এ পাঠাব)
+    const history = conversationHistory.slice(-10).map((msg) => ({
+      sender_type: msg.sender_type,
+      message: msg.message,
+    }));
 
-    contents.push({
-      role: "user",
-      parts: [{ text: SYSTEM_PROMPT }],
-    });
-    contents.push({
-      role: "model",
-      parts: [
-        {
-          text: "বুঝেছি! আমি Color Match-এর AI সহায়ক। ব্যবহারকারীদের বাংলায় সাহায্য করব।",
-        },
-      ],
-    });
-
-    conversationHistory.slice(-10).forEach((msg) => {
-      contents.push({
-        role: msg.sender_type === "user" ? "user" : "model",
-        parts: [{ text: msg.message }],
-      });
-    });
-
-    contents.push({
-      role: "user",
-      parts: [{ text: userMessage }],
-    });
-
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    // Edge Function-এ POST request
+    const response = await fetch(CHAT_AI_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Supabase Anon Key — Edge Function-এর জন্য
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        contents: contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 250,
-          topP: 0.9,
-        },
+        message: userMessage,
+        history: history,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Gemini API Error:", errorData);
-      throw new Error("API request failed");
+      console.error("Edge Function error:", response.status);
+      return {
+        success: false,
+        message:
+          "দুঃখিত, এখন AI সেবা কাজ করছে না। WhatsApp-এ যোগাযোগ করুন: 01918568313",
+      };
     }
 
     const data = await response.json();
 
-    const aiText =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "দুঃখিত, এইমাত্র উত্তর দিতে পারছি না। Support Team-এর সাথে যোগাযোগ করুন।";
+    if (data?.success && data?.message) {
+      return {
+        success: true,
+        message: data.message,
+      };
+    }
 
     return {
-      success: true,
-      message: aiText.trim(),
+      success: false,
+      message:
+        data?.message ||
+        "দুঃখিত, এখন AI সেবা কাজ করছে না। WhatsApp-এ যোগাযোগ করুন: 01918568313",
     };
   } catch (err) {
     console.error("AI Response Error:", err);
@@ -120,15 +75,14 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
   }
 }
 
-// ========================================
+// ============================================
 // নিজের Chat Thread আনা অথবা তৈরি করা
-// ========================================
+// ============================================
 export async function getOrCreateThread(userName, userCode) {
   const { data: authData } = await supabase.auth.getUser();
   const user = authData?.user;
   if (!user) throw new Error("Not authenticated");
 
-  // প্রথমে চেক করি Thread আছে কিনা
   const { data: existing } = await supabase
     .from("chat_threads")
     .select("*")
@@ -136,7 +90,6 @@ export async function getOrCreateThread(userName, userCode) {
     .maybeSingle();
 
   if (existing) {
-    // নাম/কোড আপডেট করি যদি পরিবর্তিত থাকে
     if (
       existing.user_name !== userName ||
       existing.user_code !== userCode
@@ -149,7 +102,6 @@ export async function getOrCreateThread(userName, userCode) {
     return existing;
   }
 
-  // না থাকলে নতুন তৈরি করি
   const { data: created, error } = await supabase
     .from("chat_threads")
     .insert({
@@ -168,9 +120,9 @@ export async function getOrCreateThread(userName, userCode) {
   return created;
 }
 
-// ========================================
+// ============================================
 // Thread-এর সব Message আনা
-// ========================================
+// ============================================
 export async function getMessages(threadId) {
   const { data, error } = await supabase
     .from("chat_messages")
@@ -185,9 +137,9 @@ export async function getMessages(threadId) {
   return data || [];
 }
 
-// ========================================
-// ⭐ নতুন Message Save (ঠিক করা — ভাঙা লাইন সরানো)
-// ========================================
+// ============================================
+// নতুন Message Save
+// ============================================
 export async function saveMessage({
   threadId,
   senderId,
@@ -205,7 +157,7 @@ export async function saveMessage({
       sender_name: senderName,
       message: message,
       image_url: imageUrl,
-      is_read: senderType === "ai" || senderType === "admin", // AI/Admin message default read
+      is_read: senderType === "ai" || senderType === "admin",
     })
     .select()
     .single();
@@ -214,9 +166,9 @@ export async function saveMessage({
   return data;
 }
 
-// ========================================
-// Thread-এর Last Message Update (AI-এর জন্য)
-// ========================================
+// ============================================
+// Thread-এর Last Message Update
+// ============================================
 export async function updateThreadLastMessage(
   threadId,
   message,
@@ -228,8 +180,6 @@ export async function updateThreadLastMessage(
     last_message_at: new Date().toISOString(),
   };
 
-  // AI Message হলে user_unread বাড়ানোর দরকার নেই
-  // Admin Message হলে user_unread++ (Admin reply-র জন্য RPC handle করে)
   if (incrementUnread) {
     if (readerType === "user") {
       const { data: thread } = await supabase
@@ -253,9 +203,9 @@ export async function updateThreadLastMessage(
   await supabase.from("chat_threads").update(updates).eq("id", threadId);
 }
 
-// ========================================
-// ⭐ Thread Read Mark (RPC ব্যবহার করে)
-// ========================================
+// ============================================
+// Thread Read Mark (RPC)
+// ============================================
 export async function markThreadRead(threadId, readerType) {
   const { error } = await supabase.rpc("mark_chat_read", {
     p_thread_id: threadId,
@@ -269,9 +219,9 @@ export async function markThreadRead(threadId, readerType) {
   return true;
 }
 
-// ========================================
-// ⭐ Real-time Subscribe (নতুন Message এলে)
-// ========================================
+// ============================================
+// Real-time Subscribe — Messages
+// ============================================
 export function subscribeToMessages(threadId, callback) {
   const channel = supabase
     .channel(`chat-${threadId}`)
@@ -292,9 +242,9 @@ export function subscribeToMessages(threadId, callback) {
   return () => supabase.removeChannel(channel);
 }
 
-// ========================================
-// ⭐ Real-time Subscribe — Thread Updates (unread count)
-// ========================================
+// ============================================
+// Real-time Subscribe — Thread Updates
+// ============================================
 export function subscribeToThread(threadId, callback) {
   const channel = supabase
     .channel(`thread-${threadId}`)
@@ -315,9 +265,9 @@ export function subscribeToThread(threadId, callback) {
   return () => supabase.removeChannel(channel);
 }
 
-// ========================================
-// User-এর Unread Count
-// ========================================
+// ============================================
+// Unread Count
+// ============================================
 export async function getUnreadCount() {
   const { data: authData } = await supabase.auth.getUser();
   const user = authData?.user;
@@ -333,9 +283,9 @@ export async function getUnreadCount() {
   return data.user_unread || 0;
 }
 
-// ========================================
+// ============================================
 // Time Format
-// ========================================
+// ============================================
 export function formatChatTime(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -345,9 +295,9 @@ export function formatChatTime(dateStr) {
   });
 }
 
-// ========================================
-// ⭐ Sender Type Label
-// ========================================
+// ============================================
+// Sender Label
+// ============================================
 export function getSenderLabel(senderType, senderName) {
   const map = {
     user: "আপনি",
@@ -358,9 +308,9 @@ export function getSenderLabel(senderType, senderName) {
   return map[senderType] || senderName || "Unknown";
 }
 
-// ========================================
-// ⭐ Sender Type Color (CSS class)
-// ========================================
+// ============================================
+// Sender Class (CSS)
+// ============================================
 export function getSenderClass(senderType) {
   const map = {
     user: "user",

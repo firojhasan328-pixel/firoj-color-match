@@ -12,7 +12,6 @@ import {
   markThreadRead,
   getUnreadCount,
   formatChatTime,
-  getSenderLabel,
   getSenderClass,
 } from "../services/chatService";
 import "../styles/chat.css";
@@ -23,7 +22,7 @@ const MODE_ADMIN = "admin";
 export default function LiveChatWidget() {
   // ---------- States ----------
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState(MODE_AI); // AI / Admin
+  const [mode, setMode] = useState(MODE_AI);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +36,7 @@ export default function LiveChatWidget() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  const [initError, setInitError] = useState("");
 
   // ---------- Refs ----------
   const messagesEndRef = useRef(null);
@@ -55,7 +55,10 @@ export default function LiveChatWidget() {
       try {
         const { data } = await supabase.auth.getUser();
         const user = data?.user;
-        if (!user) return;
+        if (!user) {
+          if (mounted) setInitError("Login করা নেই");
+          return;
+        }
 
         if (!mounted) return;
         setUserId(user.id);
@@ -100,6 +103,9 @@ export default function LiveChatWidget() {
         setUnread(count);
       } catch (err) {
         console.error("Chat init error:", err);
+        if (mounted) {
+          setInitError(err?.message || "Chat load করা যায়নি");
+        }
       }
     }
     init();
@@ -132,7 +138,6 @@ export default function LiveChatWidget() {
         return [...prev, newMsg];
       });
 
-      // Admin message আসলে unread count refresh করি
       if (newMsg.sender_type === "admin" && isOpen && mode === MODE_ADMIN) {
         markThreadRead(threadId, "user");
       }
@@ -146,7 +151,7 @@ export default function LiveChatWidget() {
   }, [threadId, isOpen, mode]);
 
   // ========================================
-  // Real-time Thread Subscription (admin typing + unread)
+  // Real-time Thread Subscription
   // ========================================
   useEffect(() => {
     if (!threadId) return;
@@ -233,7 +238,10 @@ export default function LiveChatWidget() {
   // ========================================
   async function handleSend(e) {
     if (e) e.preventDefault();
-    if ((!input.trim() && !imageFile) || !threadId || !userId || loading) return;
+
+    if ((!input.trim() && !imageFile) || !threadId || !userId || loading) {
+      return;
+    }
 
     const userMsg = input.trim();
     const isAdminMode = mode === MODE_ADMIN;
@@ -244,14 +252,14 @@ export default function LiveChatWidget() {
     try {
       let imageUrl = "";
 
-      // Image Upload
+      // ---------- Image Upload ----------
       if (imageFile) {
         setUploadingImage(true);
         try {
           imageUrl = await uploadChatImage(imageFile, userId);
         } catch (err) {
           console.error("Image upload error:", err);
-          alert("ছবি পাঠানো যায়নি: " + err.message);
+          alert("❌ ছবি পাঠানো যায়নি:\n\n" + (err?.message || err));
           setLoading(false);
           setUploadingImage(false);
           return;
@@ -260,26 +268,41 @@ export default function LiveChatWidget() {
         removeImage();
       }
 
-      // User Message Save
-      const saved = await saveMessage({
-        threadId,
-        senderId: userId,
-        senderType: "user",
-        senderName: userName,
-        message: userMsg || "📷 ছবি",
-        imageUrl,
-      });
+      // ---------- User Message Save ----------
+      let saved = null;
+      try {
+        saved = await saveMessage({
+          threadId,
+          senderId: userId,
+          senderType: "user",
+          senderName: userName,
+          message: userMsg || "📷 ছবি",
+          imageUrl,
+        });
+      } catch (saveErr) {
+        console.error("❌ saveMessage FAILED:", saveErr);
+        alert(
+          "❌ মেসেজ Save হয়নি\n\n" +
+            "Error: " +
+            (saveErr?.message || JSON.stringify(saveErr))
+        );
+        setInput(userMsg);
+        setLoading(false);
+        return;
+      }
 
       if (saved) {
         setMessages((prev) => [...prev, saved]);
       }
 
-      // Thread Update (user_unread বাড়ানোর দরকার নেই, DB trigger করে)
-      await updateThreadLastMessage(threadId, userMsg || "📷 ছবি", false);
+      // ---------- Update Thread ----------
+      try {
+        await updateThreadLastMessage(threadId, userMsg || "📷 ছবি", false);
+      } catch (updateErr) {
+        console.error("⚠️ updateThreadLastMessage FAILED:", updateErr);
+      }
 
-      // ==========================
-      // AI Mode → Gemini reply
-      // ==========================
+      // ---------- AI Mode ----------
       if (!isAdminMode) {
         setThinking(true);
 
@@ -288,31 +311,59 @@ export default function LiveChatWidget() {
           message: m.message,
         }));
 
-        const aiResponse = await getAIResponse(userMsg || "ছবি পাঠিয়েছি", history);
+        let aiResponse = {
+          success: false,
+          message:
+            "দুঃখিত, এখন AI সেবা কাজ করছে না। WhatsApp-এ যোগাযোগ করুন: 01918568313",
+        };
 
-        const aiSaved = await saveMessage({
-          threadId,
-          senderId: userId,
-          senderType: "ai",
-          senderName: "Color Assistant",
-          message: aiResponse.message,
-        });
+        try {
+          aiResponse = await getAIResponse(
+            userMsg || "ছবি পাঠিয়েছি",
+            history
+          );
+        } catch (aiErr) {
+          console.error("❌ getAIResponse FAILED:", aiErr);
+        }
 
-        if (aiSaved) {
-          setMessages((prev) => [...prev, aiSaved]);
+        // AI message save
+        try {
+          const aiSaved = await saveMessage({
+            threadId,
+            senderId: userId,
+            senderType: "ai",
+            senderName: "Color Assistant",
+            message: aiResponse.message,
+          });
+
+          if (aiSaved) {
+            setMessages((prev) => [...prev, aiSaved]);
+          }
+        } catch (aiSaveErr) {
+          console.error("❌ AI saveMessage FAILED:", aiSaveErr);
+          // Fallback: local-এ দেখাই
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "temp-ai-" + Date.now(),
+              sender_type: "ai",
+              sender_name: "Color Assistant",
+              message: aiResponse.message,
+              created_at: new Date().toISOString(),
+              is_read: true,
+            },
+          ]);
         }
 
         setThinking(false);
-      } else {
-        // ==========================
-        // Admin Mode → Admin-এর জন্য waiting message
-        // (Admin reply আসবে Real-time-এ)
-        // ==========================
-        // কিছু করার নেই, শুধু subscribe handle করবে
       }
     } catch (err) {
-      console.error("Send error:", err);
-      alert("মেসেজ পাঠানো যায়নি। আবার চেষ্টা করুন।");
+      console.error("❌ Send error (outer):", err);
+      alert(
+        "❌ মেসেজ পাঠানো যায়নি\n\n" +
+          "Error: " +
+          (err?.message || JSON.stringify(err))
+      );
     } finally {
       setLoading(false);
     }
@@ -334,7 +385,6 @@ export default function LiveChatWidget() {
   function handleModeSwitch(newMode) {
     setMode(newMode);
 
-    // Admin mode-এ গেলে সব read mark করি
     if (newMode === MODE_ADMIN && threadId) {
       markThreadRead(threadId, "user");
       setUnread(0);
@@ -342,7 +392,7 @@ export default function LiveChatWidget() {
   }
 
   // ========================================
-  // Avatar Emoji Based on Mode
+  // Header Info
   // ========================================
   const headerAvatar = mode === MODE_ADMIN ? "🛡️" : "🤖";
   const headerName =
@@ -431,6 +481,23 @@ export default function LiveChatWidget() {
             </div>
           </div>
 
+          {/* Init Error Notice */}
+          {initError && (
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "#fee2e2",
+                color: "#991b1b",
+                fontSize: "12px",
+                fontWeight: 600,
+                textAlign: "center",
+                borderBottom: "1px solid #fecaca",
+              }}
+            >
+              ⚠️ {initError}
+            </div>
+          )}
+
           {/* Messages */}
           <div className="chat-messages" ref={messagesContainerRef}>
             {messages.map((msg) => {
@@ -438,7 +505,6 @@ export default function LiveChatWidget() {
               const isSystem = msg.sender_type === "system";
               const senderClass = getSenderClass(msg.sender_type);
 
-              // System message
               if (isSystem) {
                 return (
                   <div key={msg.id} className="chat-bubble-row system">
@@ -505,7 +571,7 @@ export default function LiveChatWidget() {
               );
             })}
 
-            {/* AI Thinking Indicator */}
+            {/* AI Thinking */}
             {thinking && (
               <div className="chat-bubble-row ai">
                 <div className="chat-bubble-avatar">🤖</div>
@@ -519,7 +585,7 @@ export default function LiveChatWidget() {
               </div>
             )}
 
-            {/* Admin Typing Indicator */}
+            {/* Admin Typing */}
             {adminTyping && mode === MODE_ADMIN && !thinking && (
               <div className="chat-bubble-row admin">
                 <div className="chat-bubble-avatar admin">🛡️</div>
@@ -539,8 +605,8 @@ export default function LiveChatWidget() {
           {/* Admin Mode Notice */}
           {mode === MODE_ADMIN && (
             <div className="chat-admin-notice">
-              🛡️ Admin-এর সাথে সরাসরি কথা বলছেন — সাধারণত কয়েক মিনিটে উত্তর
-              পাবেন
+              🛡️ Admin-এর সাথে সরাসরি কথা বলছেন — সাধারণত কয়েক মিনিটে
+              উত্তর পাবেন
             </div>
           )}
 
@@ -577,7 +643,7 @@ export default function LiveChatWidget() {
               type="button"
               className="chat-attach-btn"
               onClick={() => fileInputRef.current?.click()}
-              disabled={loading || uploadingImage}
+              disabled={loading || uploadingImage || !threadId}
               aria-label="Attach image"
             >
               📎
@@ -589,18 +655,22 @@ export default function LiveChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                mode === MODE_ADMIN
+                !threadId
+                  ? "Chat লোড হচ্ছে..."
+                  : mode === MODE_ADMIN
                   ? "Admin-কে মেসেজ লিখুন..."
                   : "AI-কে প্রশ্ন লিখুন..."
               }
               rows={1}
-              disabled={loading}
+              disabled={loading || !threadId}
             />
 
             <button
               type="submit"
               className="chat-send-btn"
-              disabled={(!input.trim() && !imageFile) || loading}
+              disabled={
+                (!input.trim() && !imageFile) || loading || !threadId
+              }
               aria-label="Send"
             >
               {loading ? "⏳" : "📤"}

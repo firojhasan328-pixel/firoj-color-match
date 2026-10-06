@@ -1,7 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 
 // ========================================
-// Global Event System
+// Global Event System (Bell Icon Update-এর জন্য)
 // ========================================
 const listeners = new Set();
 
@@ -43,7 +43,7 @@ export async function getMyNotifications(limit = 100) {
 }
 
 // ========================================
-// Unread Count
+// Unread Count (Bell Icon Badge)
 // ========================================
 export async function getUnreadCount() {
   const { data: authData } = await supabase.auth.getUser();
@@ -101,7 +101,6 @@ export async function markAllAsRead() {
     return false;
   }
 
-  // Event Fire
   notifyCountChange();
   return true;
 }
@@ -120,7 +119,6 @@ export async function deleteNotification(notificationId) {
     return false;
   }
 
-  // Event Fire
   notifyCountChange();
   return true;
 }
@@ -143,7 +141,6 @@ export async function deleteAllNotifications() {
     return false;
   }
 
-  // Event Fire
   notifyCountChange();
   return true;
 }
@@ -186,8 +183,54 @@ export function getNotificationStyle(type) {
     system: { icon: "⚙️", color: "#64748b", bg: "#f1f5f9" },
     admin: { icon: "📢", color: "#a855f7", bg: "#faf5ff" },
     test: { icon: "✅", color: "#0ea5e9", bg: "#f0f9ff" },
+    chat: { icon: "💬", color: "#0ea5e9", bg: "#f0f9ff" }, // ⭐ NEW: Chat notification
   };
   return (
     styles[type] || { icon: "🔔", color: "#0ea5e9", bg: "#f0f9ff" }
   );
+}
+
+// ========================================
+// ⭐ Real-time Subscribe — নতুন Notification এলে
+// ========================================
+export function subscribeToNotifications(callback) {
+  let channel = null;
+
+  async function setup() {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return;
+
+    channel = supabase
+      .channel("notif-realtime-user")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Bell badge update করি
+          notifyCountChange();
+
+          // Callback-এ নতুন notification পাঠাই
+          if (callback) {
+            try {
+              callback(payload.new);
+            } catch (err) {
+              console.error("Notif callback error:", err);
+            }
+          }
+        }
+      )
+      .subscribe();
+  }
+
+  setup();
+
+  return () => {
+    if (channel) supabase.removeChannel(channel);
+  };
 }

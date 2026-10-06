@@ -35,7 +35,9 @@ const SYSTEM_PROMPT = `তুমি "Color Match" ওয়েবসাইটে
 - যদি প্রশ্নের উত্তর না জানো, তাহলে বলবে "আমি নিশ্চিত নই, Support Team-এর সাথে যোগাযোগ করুন: WhatsApp 01918568313"
 - ইমোজি ব্যবহার করবে কিন্তু মাত্রা বজায় রাখবে
 - ব্যবহারকারীকে কখনো টাকা পাঠাতে বলবে না
-- কখনো পাসওয়ার্ড বা গোপন তথ্য চাইবে না`;
+- কখনো পাসওয়ার্ড বা গোপন তথ্য চাইবে না
+
+যদি ব্যবহারকারী বারবার একই সমস্যায় পড়ে বা "Admin", "Support", "মানুষ" ইত্যাদি বলে, তাহলে বিনয়ের সাথে বলবে: "Admin-এর সাথে কথা বলতে উপরের 🔴 Live Support বাটনে চাপুন।"`;
 
 // ========================================
 // Gemini API-তে Message পাঠানো
@@ -50,10 +52,8 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
   }
 
   try {
-    // Conversation History প্রস্তুত করি
     const contents = [];
 
-    // System Prompt প্রথমে
     contents.push({
       role: "user",
       parts: [{ text: SYSTEM_PROMPT }],
@@ -67,7 +67,6 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
       ],
     });
 
-    // পূর্বের Messages
     conversationHistory.slice(-10).forEach((msg) => {
       contents.push({
         role: msg.sender_type === "user" ? "user" : "model",
@@ -75,30 +74,25 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
       });
     });
 
-    // বর্তমান Message
     contents.push({
       role: "user",
       parts: [{ text: userMessage }],
     });
 
-    // API Call
-    const response = await fetch(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 250,
+          topP: 0.9,
         },
-        body: JSON.stringify({
-          contents: contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250,
-            topP: 0.9,
-          },
-        }),
-      }
-    );
+      }),
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -139,9 +133,21 @@ export async function getOrCreateThread(userName, userCode) {
     .from("chat_threads")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (existing) return existing;
+  if (existing) {
+    // নাম/কোড আপডেট করি যদি পরিবর্তিত থাকে
+    if (
+      existing.user_name !== userName ||
+      existing.user_code !== userCode
+    ) {
+      await supabase
+        .from("chat_threads")
+        .update({ user_name: userName, user_code: userCode })
+        .eq("id", existing.id);
+    }
+    return existing;
+  }
 
   // না থাকলে নতুন তৈরি করি
   const { data: created, error } = await supabase
@@ -153,6 +159,7 @@ export async function getOrCreateThread(userName, userCode) {
       last_message: "",
       user_unread: 0,
       admin_unread: 0,
+      status: "open",
     })
     .select()
     .single();
@@ -179,7 +186,7 @@ export async function getMessages(threadId) {
 }
 
 // ========================================
-// নতুন Message Save করা
+// ⭐ নতুন Message Save (ঠিক করা — ভাঙা লাইন সরানো)
 // ========================================
 export async function saveMessage({
   threadId,
@@ -198,82 +205,72 @@ export async function saveMessage({
       sender_name: senderName,
       message: message,
       image_url: imageUrl,
-      is_read: false,
+      is_read: senderType === "ai" || senderType === "admin", // AI/Admin message default read
     })
     .select()
     .single();
 
   if (error) throw error;
-
-  // Thread-এর Last Message Update করি
-  await supabase
-    .from("chat_threads")
-    .update({
-      last_message: message.slice(0, 100),
-      last_message_at: new Date().toISOString(),
-      admin_unread:
-        senderType === "user" ? supabase.rpc ? undefined : undefined : undefined,
-    })
-    .eq("id", threadId);
-
   return data;
 }
 
 // ========================================
-// Thread-এর Last Message Update (সহজ)
+// Thread-এর Last Message Update (AI-এর জন্য)
 // ========================================
 export async function updateThreadLastMessage(
   threadId,
   message,
-  incrementUserUnread = false
+  incrementUnread = false,
+  readerType = "user"
 ) {
   const updates = {
     last_message: message.slice(0, 100),
     last_message_at: new Date().toISOString(),
   };
 
-  if (incrementUserUnread) {
-    const { data: thread } = await supabase
-      .from("chat_threads")
-      .select("user_unread")
-      .eq("id", threadId)
-      .single();
+  // AI Message হলে user_unread বাড়ানোর দরকার নেই
+  // Admin Message হলে user_unread++ (Admin reply-র জন্য RPC handle করে)
+  if (incrementUnread) {
+    if (readerType === "user") {
+      const { data: thread } = await supabase
+        .from("chat_threads")
+        .select("user_unread")
+        .eq("id", threadId)
+        .single();
 
-    updates.user_unread = (thread?.user_unread || 0) + 1;
+      updates.user_unread = (thread?.user_unread || 0) + 1;
+    } else if (readerType === "admin") {
+      const { data: thread } = await supabase
+        .from("chat_threads")
+        .select("admin_unread")
+        .eq("id", threadId)
+        .single();
+
+      updates.admin_unread = (thread?.admin_unread || 0) + 1;
+    }
   }
 
   await supabase.from("chat_threads").update(updates).eq("id", threadId);
 }
 
 // ========================================
-// User-এর সব Message Read Mark
+// ⭐ Thread Read Mark (RPC ব্যবহার করে)
 // ========================================
 export async function markThreadRead(threadId, readerType) {
-  // Messages Read Mark
-  const { data: thread } = await supabase
-    .from("chat_threads")
-    .select("user_id")
-    .eq("id", threadId)
-    .single();
+  const { error } = await supabase.rpc("mark_chat_read", {
+    p_thread_id: threadId,
+    p_reader_type: readerType,
+  });
 
-  if (!thread) return;
-
-  // Thread-এর Unread Reset করি
-  if (readerType === "user") {
-    await supabase
-      .from("chat_threads")
-      .update({ user_unread: 0 })
-      .eq("id", threadId);
-  } else if (readerType === "admin") {
-    await supabase
-      .from("chat_threads")
-      .update({ admin_unread: 0 })
-      .eq("id", threadId);
+  if (error) {
+    console.error("Mark read error:", error);
+    return false;
   }
+  return true;
 }
 
 // ========================================
-// Real-time Subscribe (নতুন Message এলে)
+// ⭐ Real-time Subscribe (নতুন Message এলে)
 // ========================================
 export function subscribeToMessages(threadId, callback) {
   const channel = supabase
@@ -296,6 +293,29 @@ export function subscribeToMessages(threadId, callback) {
 }
 
 // ========================================
+// ⭐ Real-time Subscribe — Thread Updates (unread count)
+// ========================================
+export function subscribeToThread(threadId, callback) {
+  const channel = supabase
+    .channel(`thread-${threadId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "chat_threads",
+        filter: `id=eq.${threadId}`,
+      },
+      (payload) => {
+        callback(payload.new);
+      }
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
+// ========================================
 // User-এর Unread Count
 // ========================================
 export async function getUnreadCount() {
@@ -307,7 +327,7 @@ export async function getUnreadCount() {
     .from("chat_threads")
     .select("user_unread")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return 0;
   return data.user_unread || 0;
@@ -323,4 +343,30 @@ export function formatChatTime(dateStr) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// ========================================
+// ⭐ Sender Type Label
+// ========================================
+export function getSenderLabel(senderType, senderName) {
+  const map = {
+    user: "আপনি",
+    ai: "🤖 Color Assistant",
+    admin: `🛡️ ${senderName || "Admin"}`,
+    system: "⚙️ System",
+  };
+  return map[senderType] || senderName || "Unknown";
+}
+
+// ========================================
+// ⭐ Sender Type Color (CSS class)
+// ========================================
+export function getSenderClass(senderType) {
+  const map = {
+    user: "user",
+    ai: "ai",
+    admin: "admin",
+    system: "system",
+  };
+  return map[senderType] || "ai";
 }

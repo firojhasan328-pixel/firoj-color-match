@@ -22,31 +22,28 @@ export async function getMyWithdrawals() {
 }
 
 // ========================================
-// নতুন Withdraw Request তৈরি
+// ⭐ নতুন Withdraw Request (RPC — Auto Balance Deduct)
 // ========================================
 export async function createWithdrawRequest({
-  userId,
-  userCode,
-  ownerName,
   amount,
   paymentMethod,
   accountNumber,
 }) {
-  const { data, error } = await supabase
-    .from("withdrawals")
-    .insert({
-      user_id: userId,
-      user_code: userCode,
-      owner_name: ownerName,
-      amount: amount,
-      payment_method: paymentMethod,
-      account_number: accountNumber,
-      status: "pending",
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc(
+    "create_withdraw_request",
+    {
+      p_amount: parseInt(amount),
+      p_payment_method: paymentMethod,
+      p_account_number: accountNumber,
+    }
+  );
 
   if (error) throw error;
+
+  if (!data?.success) {
+    throw new Error(data?.message || "Request পাঠানো যায়নি");
+  }
+
   return data;
 }
 

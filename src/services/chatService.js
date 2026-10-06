@@ -1,39 +1,49 @@
 import { supabase } from "../lib/supabaseClient";
 
 // ============================================
-// 🔑 Supabase Edge Function URL
-// এখানে Gemini key নেই — key আছে Supabase-এ
+// 🔗 Supabase Edge Function URL (সরাসরি)
+// এই URL আপনার chat-ai function-এর
 // ============================================
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const CHAT_AI_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/chat-ai`;
+const CHAT_AI_URL =
+  "https://lksajoepjfzpryurkfwn.supabase.co/functions/v1/chat-ai";
+
+// Supabase Anon Key (Vercel env থেকে আসবে)
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ============================================
-// AI Response — Supabase Edge Function-কে call করে
+// 🤖 AI Response — Supabase Edge Function-কে call করে
 // ============================================
 export async function getAIResponse(userMessage, conversationHistory = []) {
-  if (!SUPABASE_URL) {
+  console.log("🤖 [chatService] getAIResponse called");
+  console.log("📝 Message:", userMessage);
+  console.log("📜 History count:", conversationHistory.length);
+
+  // Check: Anon Key আছে কি?
+  if (!SUPABASE_ANON_KEY) {
+    console.error("❌ VITE_SUPABASE_ANON_KEY missing from env!");
     return {
       success: false,
       message:
-        "Configuration Missing। Support Team-এর সাথে যোগাযোগ করুন: 01918568313",
+        "Configuration Error। Support Team-এর সাথে যোগাযোগ করুন: 01918568313",
     };
   }
 
   try {
-    // History প্রস্তুত করি (Edge Function-এ পাঠাব)
+    // History প্রস্তুত করি
     const history = conversationHistory.slice(-10).map((msg) => ({
       sender_type: msg.sender_type,
       message: msg.message,
     }));
 
+    console.log("📤 Fetching:", CHAT_AI_URL);
+
     // Edge Function-এ POST request
-    const response = await fetch(CHAT_AI_FUNCTION_URL, {
+    const response = await fetch(CHAT_AI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Supabase Anon Key — Edge Function-এর জন্য
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         message: userMessage,
@@ -41,8 +51,11 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
       }),
     });
 
+    console.log("📥 Response Status:", response.status);
+
     if (!response.ok) {
-      console.error("Edge Function error:", response.status);
+      const errorText = await response.text();
+      console.error("❌ Response not OK:", errorText);
       return {
         success: false,
         message:
@@ -51,6 +64,7 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
     }
 
     const data = await response.json();
+    console.log("✅ Response Data:", data);
 
     if (data?.success && data?.message) {
       return {
@@ -66,7 +80,7 @@ export async function getAIResponse(userMessage, conversationHistory = []) {
         "দুঃখিত, এখন AI সেবা কাজ করছে না। WhatsApp-এ যোগাযোগ করুন: 01918568313",
     };
   } catch (err) {
-    console.error("AI Response Error:", err);
+    console.error("❌ [chatService] Fetch Error:", err);
     return {
       success: false,
       message:
@@ -90,6 +104,7 @@ export async function getOrCreateThread(userName, userCode) {
     .maybeSingle();
 
   if (existing) {
+    // Name/Code update করি যদি বদলে থাকে
     if (
       existing.user_name !== userName ||
       existing.user_code !== userCode
@@ -102,6 +117,7 @@ export async function getOrCreateThread(userName, userCode) {
     return existing;
   }
 
+  // নতুন thread
   const { data: created, error } = await supabase
     .from("chat_threads")
     .insert({

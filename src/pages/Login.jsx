@@ -36,7 +36,11 @@ export default function Login() {
 
       navigate("/home");
     } catch (err) {
-      setError("ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।");
+      if (err?.code === "ACCOUNT_LOCKED" || err?.code === "ACCOUNT_PERMANENT") {
+        setError(err.message || "আপনার অ্যাকাউন্ট সাময়িকভাবে লক করা হয়েছে।");
+      } else {
+        setError("ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।");
+      }
     } finally {
       setLoading(false);
     }

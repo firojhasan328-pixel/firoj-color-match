@@ -1,208 +1,461 @@
 /* ========================================
-   ACCOUNT BLOCKED MODAL
+   ACCOUNT LOCKED MODAL (Security)
    ======================================== */
-.blocked-overlay {
+
+.locked-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: fadeIn 0.3s ease;
+  animation: lockedFade 0.3s ease;
+  overflow-y: auto;
 }
 
-.blocked-card {
+@keyframes lockedFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.locked-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   background: #ffffff;
   border-radius: 24px;
   padding: 32px 24px 24px;
   text-align: center;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-  animation: fadeUp 0.4s ease;
+  animation: lockedUp 0.4s ease;
   position: relative;
   overflow: hidden;
+  max-height: 92vh;
+  overflow-y: auto;
 }
 
-.blocked-card::before {
-  content: "";
+.locked-top-glow {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 200px;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
 }
 
-.blocked-card.suspended::before {
-  background: linear-gradient(90deg, #f59e0b, #d97706);
+.locked-card.warning .locked-top-glow {
+  background: rgba(245, 158, 11, 0.35);
 }
 
-.blocked-card.locked::before {
-  background: linear-gradient(90deg, #ef4444, #dc2626);
+.locked-card.locked72 .locked-top-glow {
+  background: rgba(239, 68, 68, 0.4);
 }
 
-.blocked-icon-wrap {
+.locked-card.permanent .locked-top-glow {
+  background: rgba(120, 20, 20, 0.5);
+}
+
+@keyframes lockedUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Icon */
+.locked-icon-wrap {
   display: flex;
   justify-content: center;
   margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
 }
 
-.blocked-icon {
-  width: 80px;
-  height: 80px;
+.locked-icon {
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 42px;
   border: 4px solid;
+  position: relative;
 }
 
-.blocked-card.suspended .blocked-icon {
+.locked-card.warning .locked-icon {
   background: linear-gradient(135deg, #fef3c7, #fde68a);
   border-color: #fbbf24;
-  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.35);
+  box-shadow: 0 10px 34px rgba(251, 191, 36, 0.45);
 }
 
-.blocked-card.locked .blocked-icon {
+.locked-card.locked72 .locked-icon {
   background: linear-gradient(135deg, #fee2e2, #fecaca);
   border-color: #ef4444;
-  box-shadow: 0 10px 30px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 10px 34px rgba(239, 68, 68, 0.45);
+  animation: lockedPulse 2s ease infinite;
 }
 
-.blocked-title {
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 12px;
+.locked-card.permanent .locked-icon {
+  background: linear-gradient(135deg, #450a0a, #7f1d1d);
+  border-color: #7f1d1d;
+  box-shadow: 0 10px 34px rgba(127, 29, 29, 0.6);
+  color: #ffffff;
 }
 
-.blocked-card.suspended .blocked-title {
-  color: #92400e;
+@keyframes lockedPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
-.blocked-card.locked .blocked-title {
-  color: #991b1b;
-}
-
-.blocked-message {
-  font-size: 13.5px;
-  color: #475569;
-  line-height: 1.65;
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  font-weight: 600;
-}
-
-.blocked-help-box {
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #f0f9ff, #e0e7ff);
-  border: 1px solid #bae6fd;
-  margin-bottom: 18px;
-  text-align: left;
-}
-
-.blocked-help-title {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #0284c7;
-  margin-bottom: 6px;
+/* Title */
+.locked-title {
+  font-size: 21px;
+  font-weight: 900;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
   letter-spacing: 0.3px;
 }
 
-.blocked-help-text {
-  font-size: 12.5px;
-  color: #475569;
-  line-height: 1.6;
-  font-weight: 500;
+.locked-card.warning .locked-title { color: #92400e; }
+.locked-card.locked72 .locked-title { color: #991b1b; }
+.locked-card.permanent .locked-title { color: #450a0a; }
+
+/* Message Box */
+.locked-message-box {
+  padding: 16px 18px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
 }
 
-.blocked-contact {
+.locked-card.warning .locked-message-box {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1px solid #fde68a;
+}
+
+.locked-card.locked72 .locked-message-box {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border: 1px solid #fecaca;
+}
+
+.locked-card.permanent .locked-message-box {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border: 1.5px solid #fca5a5;
+}
+
+.locked-message {
+  font-size: 13.5px;
+  line-height: 1.75;
+  font-weight: 600;
+  text-align: left;
+}
+
+.locked-card.warning .locked-message { color: #78350f; }
+.locked-card.locked72 .locked-message { color: #7f1d1d; }
+.locked-card.permanent .locked-message { color: #7f1d1d; }
+
+.locked-highlight {
+  color: #dc2626;
+  font-weight: 900;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+.locked-highlight.permanent {
+  background: rgba(127, 29, 29, 0.2);
+  color: #450a0a;
+}
+
+/* Countdown */
+.locked-countdown-box {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: #ffffff;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.locked-countdown-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.locked-countdown-time {
+  font-size: 24px;
+  font-weight: 900;
+  font-family: "Hind Siliguri", monospace;
+  letter-spacing: 0.5px;
+  color: #fca5a5;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+/* Warning Banner */
+.locked-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  line-height: 1.5;
+  animation: lockedPulse 2.5s ease infinite;
+}
+
+.locked-warning-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* Contact Section */
+.locked-contact-section {
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.locked-contact-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 10px;
+  text-align: left;
+  letter-spacing: 0.3px;
+}
+
+.locked-contact-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
 }
 
-.blocked-contact-btn {
-  padding: 13px;
+.locked-contact-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
   border-radius: 12px;
   text-decoration: none;
   font-weight: 700;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
   transition: transform 0.15s;
   font-family: inherit;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.blocked-contact-btn:active {
+.locked-contact-btn:active {
   transform: scale(0.96);
 }
 
-.blocked-contact-btn.whatsapp {
+.locked-contact-btn.whatsapp {
   background: #25D366;
   color: #ffffff;
-  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.3);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35);
 }
 
-.blocked-contact-btn.call {
+.locked-contact-btn.call {
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
   color: #ffffff;
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.35);
 }
 
-.blocked-logout-btn {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  background: #f1f5f9;
-  color: #334155;
+.locked-contact-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.locked-contact-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.locked-contact-label {
+  font-size: 10.5px;
+  opacity: 0.9;
+  letter-spacing: 0.3px;
+}
+
+.locked-contact-value {
+  font-size: 12px;
+  font-weight: 900;
+  font-family: monospace;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.locked-contact-confirmed {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 12px;
   font-weight: 700;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Info Footer */
+.locked-info-footer {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.locked-info-text {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Logout */
+.locked-logout-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 800;
   font-size: 14px;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s;
-  border: 1px solid #e2e8f0;
+  transition: all 0.15s;
+  position: relative;
+  z-index: 1;
 }
 
-.blocked-logout-btn:hover {
-  background: #e2e8f0;
+.locked-logout-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
-.blocked-footer-text {
-  font-size: 11px;
+.locked-logout-btn:active {
+  transform: scale(0.97);
+}
+
+/* Footer Text */
+.locked-footer-text {
+  font-size: 10.5px;
   color: #94a3b8;
-  margin-top: 14px;
   font-weight: 600;
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.3px;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* ========================================
+   LOGIN WARNING BOX
+   ======================================== */
+.login-warning-box {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1.5px solid #fbbf24;
+  color: #92400e;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.55;
+  animation: loginWarning 0.5s ease;
 }
 
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+.login-warning-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.login-warning-text {
+  flex: 1;
+}
+
+@keyframes loginWarning {
+  0% { transform: scale(0.96); opacity: 0; }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ========================================
+   LOGIN SECURITY NOTICE
+   ======================================== */
+.login-security-notice {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE
+   ======================================== */
+@media (max-width: 400px) {
+  .locked-card {
+    padding: 26px 20px 20px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .locked-icon {
+    width: 72px;
+    height: 72px;
+    font-size: 34px;
+  }
+  .locked-title {
+    font-size: 18px;
+  }
+  .locked-message {
+    font-size: 12.5px;
+  }
+  .locked-countdown-time {
+    font-size: 20px;
+  }
+  .locked-contact-grid {
+    grid-template-columns: 1fr;
   }
 }
